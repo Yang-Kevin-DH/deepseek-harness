@@ -27,7 +27,9 @@ export {
 export {
   composeProviderProxyUrl,
   createProviderProxyTransport,
+  resolveProviderProxyTransport,
   UNSUPPORTED_PROVIDER_PROXY_PROTOCOL_MESSAGE,
   type ProviderProxyConfig,
   type ProviderProxyTransport,
+  type ProviderProxyTransportEntry,
 } from './provider-transport.ts'

@@ -60,7 +60,7 @@ import type {} from '@deepseek-ai/cordis-plugin-loader'
 
 import type { Context } from '@deepseek-ai/cordis'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { composeProviderProxyUrl, createProviderProxyTransport, type ProviderProxyTransport } from '@deepseek-ai/dsh-http-proxy'
+import { resolveProviderProxyTransport, type ProviderProxyTransport, type ProviderProxyTransportEntry } from '@deepseek-ai/dsh-http-proxy'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type { AdapterRegistrationHandle, DirectoryRegistrationHandle, LlmConfigurableProvider } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-fs'
@@ -206,29 +206,16 @@ export function apply(ctx: Context, config: Config): void {
     )
   }
 
-  const proxyTransports = new Map<string, { url: string; transport: ProviderProxyTransport }>()
-  const resolveProxyTransport = async (
+  const proxyTransports = new Map<string, ProviderProxyTransportEntry>()
+  const resolveProxyTransport = (
     provider: string,
     profile: ResolvedPiAiProviderProfile,
-  ): Promise<ProviderProxyTransport | undefined> => {
-    if (profile.proxy === undefined || profile.proxy === '') {
-      const stale = proxyTransports.get(provider)
-      if (stale !== undefined) { await stale.transport.dispose(); proxyTransports.delete(provider) }
-      return undefined
-    }
-    const credentials = profile.proxyCredentialEnv === undefined
-      ? undefined
-      : launchEnvironmentOf(ctx).get(profile.proxyCredentialEnv)?.value
-    const url = composeProviderProxyUrl({ proxy: profile.proxy, credentials })
-    if (url === undefined) return undefined
-    const cached = proxyTransports.get(provider)
-    if (cached?.url === url) return cached.transport
-    if (cached !== undefined) await cached.transport.dispose()
-    const transport = await createProviderProxyTransport({ proxy: profile.proxy, credentials })
-    if (transport === undefined) { proxyTransports.delete(provider); return undefined }
-    proxyTransports.set(provider, { url, transport })
-    return transport
-  }
+  ): Promise<ProviderProxyTransport | undefined> =>
+    resolveProviderProxyTransport(
+      { proxy: profile.proxy, proxyCredentialEnv: profile.proxyCredentialEnv },
+      ref => ref === undefined ? undefined : launchEnvironmentOf(ctx).get(ref)?.value,
+      proxyTransports, provider,
+    )
   ctx.effect(() => async () => {
     for (const entry of proxyTransports.values()) await entry.transport.dispose()
     proxyTransports.clear()

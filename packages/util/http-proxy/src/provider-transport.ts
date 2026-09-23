@@ -53,6 +53,53 @@ export interface ProviderProxyTransport {
   readonly dispose: () => Promise<void>
 }
 
+/** One cache entry: the composed URL (cache key contents) and its live transport. */
+export interface ProviderProxyTransportEntry {
+  /** Composed proxy URL (with credentials) this entry was built for. */
+  readonly url: string
+  /** The live transport; dispose before replacing. */
+  readonly transport: ProviderProxyTransport
+}
+
+/**
+ * Resolve a provider's scoped proxy transport from a profile that names its
+ * credential by reference, caching by `key` so an unchanged proxy reuses one
+ * dispatcher and a changed one disposes the old before building the new.
+ *
+ * Generic over the credential-reference type so this stays decoupled from the
+ * credentials seam: the caller resolves the reference (mirroring `apiKeyEnv`)
+ * through `resolveCredential`.
+ *
+ * @param config - the profile's proxy address and credential reference.
+ * @param resolveCredential - resolves the credential reference to a `user:pass`
+ *   value; receives `undefined` when the profile names no credential.
+ * @param cache - the caller-owned transport cache (keyed by `key`).
+ * @param key - cache key for this provider/route.
+ * @returns the transport, or `undefined` when no proxy is configured.
+ * @throws when `proxy` is present but unsupported (see {@link composeProviderProxyUrl}).
+ */
+export async function resolveProviderProxyTransport<TRef>(
+  config: { readonly proxy?: string | undefined; readonly proxyCredentialEnv?: TRef | undefined },
+  resolveCredential: (ref: TRef | undefined) => string | undefined,
+  cache: Map<string, ProviderProxyTransportEntry>,
+  key: string,
+): Promise<ProviderProxyTransport | undefined> {
+  const credentials = resolveCredential(config.proxyCredentialEnv)
+  const url = composeProviderProxyUrl({ proxy: config.proxy, credentials })
+  if (url === undefined) {
+    const stale = cache.get(key)
+    if (stale !== undefined) { await stale.transport.dispose(); cache.delete(key) }
+    return undefined
+  }
+  const cached = cache.get(key)
+  if (cached?.url === url) return cached.transport
+  if (cached !== undefined) await cached.transport.dispose()
+  const transport = await createProviderProxyTransport({ proxy: config.proxy, credentials })
+  if (transport === undefined) { cache.delete(key); return undefined }
+  cache.set(key, { url, transport })
+  return transport
+}
+
 /** Unsupported proxy scheme diagnostic, matching the process-wide policy's vocabulary. */
 export const UNSUPPORTED_PROVIDER_PROXY_PROTOCOL_MESSAGE
   = 'Unsupported proxy protocol. SOCKS and PAC proxy URLs are not supported; use an HTTP or HTTPS proxy URL.'

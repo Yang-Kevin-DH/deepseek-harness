@@ -5,7 +5,9 @@ import { fetch as undiciFetch } from 'undici'
 import {
   composeProviderProxyUrl,
   createProviderProxyTransport,
+  resolveProviderProxyTransport,
   UNSUPPORTED_PROVIDER_PROXY_PROTOCOL_MESSAGE,
+  type ProviderProxyTransportEntry,
 } from '../src/provider-transport.ts'
 
 /** Absolute-form request target the fake proxy received; a populated entry proves a request was tunnelled. */
@@ -141,5 +143,54 @@ describe('createProviderProxyTransport', () => {
   it('disposes the dispatcher without throwing', async () => {
     const transport = await createProviderProxyTransport({ proxy: proxyUrl })
     await expect(transport!.dispose()).resolves.toBeUndefined()
+  })
+})
+
+describe('resolveProviderProxyTransport', () => {
+  it('returns undefined and leaves the cache empty when no proxy is configured', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    expect(await resolveProviderProxyTransport({}, () => undefined, cache, 'k')).toBeUndefined()
+    expect(cache.size).toBe(0)
+  })
+
+  it('builds, caches, and reuses a transport for an unchanged proxy', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    const first = await resolveProviderProxyTransport({ proxy: proxyUrl }, () => undefined, cache, 'k')
+    const second = await resolveProviderProxyTransport({ proxy: proxyUrl }, () => undefined, cache, 'k')
+    expect(first).not.toBeUndefined()
+    expect(second).toBe(first)
+    expect(cache.size).toBe(1)
+  })
+
+  it('resolves the credential reference and tunnels with it', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    const resolveCredential = (ref: string | undefined) => ref === 'AUTH' ? 'alice:secret' : undefined
+    const transport = await resolveProviderProxyTransport({ proxy: proxyUrl, proxyCredentialEnv: 'AUTH' }, resolveCredential, cache, 'k')
+    await undiciFetch(originUrl, { dispatcher: transport!.dispatcher })
+    expect(proxied).toContain(`GET ${originUrl}`)
+    const [authorization] = proxyAuth
+    expect(Buffer.from(authorization!.slice(6), 'base64').toString()).toBe('alice:secret')
+  })
+
+  it('disposes and drops a cached transport when the proxy is removed', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    await resolveProviderProxyTransport({ proxy: proxyUrl }, () => undefined, cache, 'k')
+    expect(cache.size).toBe(1)
+    expect(await resolveProviderProxyTransport({}, () => undefined, cache, 'k')).toBeUndefined()
+    expect(cache.size).toBe(0)
+  })
+
+  it('disposes the old transport and rebuilds when the URL changes', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    const first = await resolveProviderProxyTransport({ proxy: proxyUrl }, () => 'a:b', cache, 'k')
+    const second = await resolveProviderProxyTransport({ proxy: proxyUrl }, () => 'c:d', cache, 'k')
+    expect(second).not.toBe(first)
+    expect(cache.size).toBe(1)
+  })
+
+  it('rejects an unsupported scheme', async () => {
+    const cache = new Map<string, ProviderProxyTransportEntry>()
+    await expect(resolveProviderProxyTransport({ proxy: 'socks5://host:1080' }, () => undefined, cache, 'k'))
+      .rejects.toThrow(UNSUPPORTED_PROVIDER_PROXY_PROTOCOL_MESSAGE)
   })
 })

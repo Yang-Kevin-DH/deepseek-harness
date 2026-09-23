@@ -6,7 +6,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { assertUsableApiKey, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-fs'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
-import { composeProviderProxyUrl, createProviderProxyTransport, type ProviderProxyTransport } from '@deepseek-ai/dsh-http-proxy'
+import { resolveProviderProxyTransport, type ProviderProxyTransport, type ProviderProxyTransportEntry } from '@deepseek-ai/dsh-http-proxy'
 import { deepEqualJson } from '@deepseek-ai/dsh-util-values'
 import { getOrCreateAnonymousUserId, type AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import { DeepSeekAdapter } from './adapter.ts'
@@ -85,22 +85,16 @@ export function apply(ctx: Context, config: Config): void {
     )
   }
 
-  let proxyTransport: { url: string; transport: ProviderProxyTransport } | undefined
-  const resolveProxyTransport = async (connection: ResolvedDeepSeekOptions): Promise<ProviderProxyTransport | undefined> => {
-    if (connection.proxy === undefined || connection.proxy === '') return undefined
-    const credentials = connection.proxyCredentialEnv === undefined
-      ? undefined
-      : launchEnvironmentOf(ctx).get(connection.proxyCredentialEnv)?.value
-    const url = composeProviderProxyUrl({ proxy: connection.proxy, credentials })
-    if (url === undefined) return undefined
-    if (proxyTransport?.url === url) return proxyTransport.transport
-    if (proxyTransport !== undefined) await proxyTransport.transport.dispose()
-    const transport = await createProviderProxyTransport({ proxy: connection.proxy, credentials })
-    proxyTransport = transport === undefined ? undefined : { url, transport }
-    return proxyTransport?.transport
-  }
+  const proxyTransportCache = new Map<string, ProviderProxyTransportEntry>()
+  const resolveProxyTransport = (connection: ResolvedDeepSeekOptions): Promise<ProviderProxyTransport | undefined> =>
+    resolveProviderProxyTransport(
+      { proxy: connection.proxy, proxyCredentialEnv: connection.proxyCredentialEnv },
+      ref => ref === undefined ? undefined : launchEnvironmentOf(ctx).get(ref)?.value,
+      proxyTransportCache, 'deepseek',
+    )
   ctx.effect(() => async () => {
-    if (proxyTransport !== undefined) await proxyTransport.transport.dispose()
+    for (const entry of proxyTransportCache.values()) await entry.transport.dispose()
+    proxyTransportCache.clear()
   })
 
   let userId: AnonymousUserId | undefined
