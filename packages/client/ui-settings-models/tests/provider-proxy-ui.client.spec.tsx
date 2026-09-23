@@ -41,6 +41,7 @@ describe('ProviderEditor proxy fields', () => {
     const ns = piAiNamespace({ openai: { baseURL: 'https://api.openai.com/v1' } })
     const operations = {
       storeCredential: vi.fn(),
+      removeCredential: vi.fn(),
       writeSettings: vi.fn(),
       discoverModels: vi.fn().mockResolvedValue({ ok: true, value: [] }),
       describeCredential: vi.fn().mockResolvedValue({ configured: false, writable: true }),
@@ -85,6 +86,7 @@ describe('ProviderEditor proxy fields', () => {
     const ns = piAiNamespace({ openai: { baseURL: 'https://api.openai.com/v1' } })
     const operations = {
       storeCredential: vi.fn().mockResolvedValue(undefined),
+      removeCredential: vi.fn(),
       writeSettings: vi.fn().mockResolvedValue({ kind: 'written', view: ns }),
       discoverModels: vi.fn().mockResolvedValue({ ok: true, value: [] }),
       describeCredential: vi.fn().mockResolvedValue({ configured: false, writable: true }),
@@ -127,6 +129,7 @@ describe('CustomProviderCard proxy fields', () => {
   it('renders proxy toggle and surfaces proxy URL validation in custom card', () => {
     const operations = {
       storeCredential: vi.fn(),
+      removeCredential: vi.fn(),
       writeSettings: vi.fn(),
       discoverModels: vi.fn().mockResolvedValue({ ok: true, value: [] }),
       describeCredential: vi.fn().mockResolvedValue({ configured: false, writable: true }),

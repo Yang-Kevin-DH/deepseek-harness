@@ -179,7 +179,14 @@ function apiKeyEnvOf(
   return typeof ref === 'string' && ref.length > 0 ? ref : undefined
 }
 
-/** The proxy address a resolved profile names. */
+/**
+ * The proxy address a resolved profile names.
+ *
+ * @param namespace Settings namespace view to inspect.
+ * @param path Path to the profile within the namespace value.
+ * @param schema Schema operations helper.
+ * @returns Non-empty proxy string if present, otherwise undefined.
+ */
 export function proxyOf(
   namespace: SettingsNamespaceView | undefined,
   path: readonly string[],
@@ -192,7 +199,14 @@ export function proxyOf(
   return typeof val === 'string' && val.length > 0 ? val : undefined
 }
 
-/** The proxy credential reference a resolved profile names. */
+/**
+ * The proxy credential reference a resolved profile names.
+ *
+ * @param namespace Settings namespace view to inspect.
+ * @param path Path to the profile within the namespace value.
+ * @param schema Schema operations helper.
+ * @returns Non-empty credential env-ref string if present, otherwise undefined.
+ */
 export function proxyCredentialEnvOf(
   namespace: SettingsNamespaceView | undefined,
   path: readonly string[],

@@ -121,14 +121,16 @@ describe('createProviderProxyTransport', () => {
     const transport = await createProviderProxyTransport({ proxy: proxyUrl, credentials: 'alice:secret' })
     await undiciFetch(originUrl, { dispatcher: transport!.dispatcher })
     const [authorization] = proxyAuth
-    expect(authorization).toMatch(/^Basic /)
-    expect(Buffer.from(authorization.slice(6), 'base64').toString()).toBe('alice:secret')
+    expect(authorization).toBeDefined()
+    expect(authorization!).toMatch(/^Basic /)
+    expect(Buffer.from(authorization!.slice(6), 'base64').toString()).toBe('alice:secret')
   })
 
   it('carries the proxy URL in the provider-scoped env', async () => {
     const transport = await createProviderProxyTransport({ proxy: proxyUrl })
     const expected = new URL(proxyUrl)
-    const https = new URL(transport!.env.HTTPS_PROXY)
+    expect(transport!.env.HTTPS_PROXY).toBeDefined()
+    const https = new URL(transport!.env.HTTPS_PROXY!)
     expect(https.protocol).toBe('http:')
     expect(https.hostname).toBe(expected.hostname)
     expect(https.port).toBe(expected.port)
