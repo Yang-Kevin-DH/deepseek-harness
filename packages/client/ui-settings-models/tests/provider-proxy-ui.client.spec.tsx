@@ -123,6 +123,43 @@ describe('ProviderEditor proxy fields', () => {
     expect(await screen.findByText(/proxy must use http or https/i)).toBeDefined()
     expect(operations.writeSettings).not.toHaveBeenCalled()
   })
+
+  it('edits proxy fields through the change handlers', () => {
+    const ns = piAiNamespace({ openai: { baseURL: 'https://api.openai.com/v1' } })
+    const operations = {
+      storeCredential: vi.fn(),
+      removeCredential: vi.fn(),
+      writeSettings: vi.fn(),
+      discoverModels: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+      describeCredential: vi.fn().mockResolvedValue({ configured: false, writable: true }),
+    }
+
+    render(
+      <ProviderEditor
+        provider="openai"
+        displayName="OpenAI"
+        namespace={ns}
+        schema={settingsSchema}
+        settingsPath={['providers', 'openai']}
+        operations={operations}
+        t={t}
+        readOnly={false}
+        onClose={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByText(en.customized))
+    fireEvent.click(screen.getByLabelText(en.useProxy))
+
+    const proxyInput = screen.getByLabelText(en.proxyUrl)
+    // An empty value exercises the clear-to-undefined branch; a non-empty value the other.
+    fireEvent.change(proxyInput, { target: { value: '' } })
+    fireEvent.change(proxyInput, { target: { value: 'http://proxy.example:8080' } })
+    fireEvent.change(screen.getByLabelText(en.proxyCredentialEnv), { target: { value: 'MY_PROXY_AUTH' } })
+
+    expect((screen.getByLabelText(en.proxyUrl) as HTMLInputElement).value).toBe('http://proxy.example:8080')
+    expect((screen.getByLabelText(en.proxyCredentialEnv) as HTMLInputElement).value).toBe('MY_PROXY_AUTH')
+  })
 })
 
 describe('CustomProviderCard proxy fields', () => {
@@ -155,5 +192,35 @@ describe('CustomProviderCard proxy fields', () => {
 
     const proxyInput = screen.getByLabelText(en.proxyUrl) as HTMLInputElement
     expect(proxyInput).toBeDefined()
+  })
+
+  it('edits proxy fields through the change handlers', () => {
+    const operations = {
+      storeCredential: vi.fn(),
+      removeCredential: vi.fn(),
+      writeSettings: vi.fn(),
+      discoverModels: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+      describeCredential: vi.fn().mockResolvedValue({ configured: false, writable: true }),
+    }
+
+    render(
+      <CustomProviderCard
+        taken={[]}
+        protocols={['openai-completions']}
+        revision={1}
+        operations={operations}
+        t={t}
+        readOnly={false}
+        onClose={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText(en.useProxy))
+    fireEvent.change(screen.getByLabelText(en.proxyUrl), { target: { value: 'http://proxy.example:8080' } })
+    fireEvent.change(screen.getByLabelText(en.proxyCredentialEnv), { target: { value: 'MY_PROXY_AUTH' } })
+    fireEvent.click(screen.getByText(en.create))
+
+    expect((screen.getByLabelText(en.proxyUrl) as HTMLInputElement).value).toBe('http://proxy.example:8080')
+    expect((screen.getByLabelText(en.proxyCredentialEnv) as HTMLInputElement).value).toBe('MY_PROXY_AUTH')
   })
 })
