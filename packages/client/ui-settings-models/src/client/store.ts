@@ -8,6 +8,7 @@
  */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import type {
   CredentialInfo, LlmConfigurableProvider, LlmProviderInfo, SettingsNamespaceView,
 } from '@deepseek-ai/dsh-api-remotes/client'
@@ -21,6 +22,33 @@ import type { SettingsSchemaOperations } from './schema-operations.ts'
  * names one that cannot collide with a configured route.
  */
 const PROBE_ROUTE = '\u0000probe'
+
+/**
+ * Provider profile settings schema fragment for `apiKeyEnv`, `proxy`, and `proxyCredentialEnv`.
+ */
+export const ProviderProfileSchema = z.object({
+  apiKeyEnv: z.string().role('credential-ref'),
+  proxy: z.string(),
+  proxyCredentialEnv: z.string().role('credential-ref'),
+})
+
+/**
+ * Validate that a proxy URL string uses HTTP or HTTPS protocol.
+ * @param proxy - proxy URL string to validate.
+ * @throws Error if the proxy URL is invalid or uses a protocol other than http: or https:.
+ */
+export function validateProxyUrl(proxy: string): void {
+  if (proxy.trim() === '') return
+  let parsed: URL
+  try {
+    parsed = new URL(proxy)
+  } catch {
+    throw new Error('proxy must use http or https')
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`proxy must use http or https, got ${parsed.protocol}`)
+  }
+}
 
 /** One provider row after joining the configurable directory with live routes. */
 export interface ProviderDirectoryEntry {
@@ -77,6 +105,10 @@ export interface ProviderRow {
   removable: boolean
   /** The credential reference the resolved profile names, when one does. */
   apiKeyEnv: string | undefined
+  /** The proxy address the resolved profile names, when one does. */
+  proxy?: string
+  /** The proxy credential reference the resolved profile names, when one does. */
+  proxyCredentialEnv?: string
   /** Credential state for {@link apiKeyEnv}, once described. */
   credential: CredentialInfo | undefined
   /**
@@ -147,6 +179,32 @@ function apiKeyEnvOf(
   return typeof ref === 'string' && ref.length > 0 ? ref : undefined
 }
 
+/** The proxy address a resolved profile names. */
+export function proxyOf(
+  namespace: SettingsNamespaceView | undefined,
+  path: readonly string[],
+  schema: SettingsSchemaOperations,
+): string | undefined {
+  if (namespace === undefined) return undefined
+  const profile = schema.getPath(namespace.value, path)
+  if (typeof profile !== 'object' || profile === null) return undefined
+  const val = (profile as { proxy?: unknown }).proxy
+  return typeof val === 'string' && val.length > 0 ? val : undefined
+}
+
+/** The proxy credential reference a resolved profile names. */
+export function proxyCredentialEnvOf(
+  namespace: SettingsNamespaceView | undefined,
+  path: readonly string[],
+  schema: SettingsSchemaOperations,
+): string | undefined {
+  if (namespace === undefined) return undefined
+  const profile = schema.getPath(namespace.value, path)
+  if (typeof profile !== 'object' || profile === null) return undefined
+  const ref = (profile as { proxyCredentialEnv?: unknown }).proxyCredentialEnv
+  return typeof ref === 'string' && ref.length > 0 ? ref : undefined
+}
+
 /** The models settings page controller (one per settings surface). */
 export class ModelsSettingsStore {
   /** The snapshot the section renders from (uSES-safe store). */
@@ -204,11 +262,15 @@ export class ModelsSettingsStore {
         && entry.settingsPath.length > 0
         && this.schema.hasPath(namespace.user, entry.settingsPath)
         && !this.schema.hasPath(namespace.base, entry.settingsPath)
+      const proxy = proxyOf(namespace, entry.settingsPath, this.schema)
+      const proxyCredentialEnv = proxyCredentialEnvOf(namespace, entry.settingsPath, this.schema)
       return {
         entry,
         configured,
         removable,
         apiKeyEnv: apiKeyEnvOf(namespace, entry.settingsPath, this.schema),
+        ...proxy === undefined ? {} : { proxy },
+        ...proxyCredentialEnv === undefined ? {} : { proxyCredentialEnv },
         credential: undefined,
       }
     })
