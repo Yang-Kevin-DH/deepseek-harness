@@ -110,6 +110,13 @@ describe('createProviderProxyTransport', () => {
     expect(proxied).toContain(`GET ${originUrl}`)
   })
 
+  it('routes a request through the proxy via the fetch override', async () => {
+    const transport = await createProviderProxyTransport({ proxy: proxyUrl })
+    const response = await transport!.fetch(originUrl)
+    expect(await response.text()).toBe('VIA-PROXY')
+    expect(proxied).toContain(`GET ${originUrl}`)
+  })
+
   it('sends Proxy-Authorization when credentials are supplied', async () => {
     const transport = await createProviderProxyTransport({ proxy: proxyUrl, credentials: 'alice:secret' })
     await undiciFetch(originUrl, { dispatcher: transport!.dispatcher })

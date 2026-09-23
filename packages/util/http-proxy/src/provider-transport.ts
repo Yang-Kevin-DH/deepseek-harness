@@ -39,6 +39,12 @@ export interface ProviderProxyTransport {
   /** undici dispatcher that tunnels through the proxy. */
   readonly dispatcher: Dispatcher
   /**
+   * `fetch` override that routes through {@link ProviderProxyTransport.dispatcher}, for
+   * adapters and SDKs that accept a custom `fetch` (undici's `fetch` accepts a per-request
+   * `dispatcher`). Typed as `typeof globalThis.fetch` so it slots into both.
+   */
+  readonly fetch: typeof globalThis.fetch
+  /**
    * Provider-scoped env carrying the full proxy URL, for SDK transports that
    * resolve `HTTPS_PROXY` themselves (these take precedence over `process.env`).
    */
@@ -83,9 +89,10 @@ export function composeProviderProxyUrl(config: ProviderProxyConfig): string | u
 
 /**
  * Build a provider's scoped proxy transport: an undici `ProxyAgent` over the
- * composed URL, the provider-scoped env, and a disposer. The caller threads the
- * dispatcher into its own `fetch` calls and passes the env to SDKs that read
- * proxy variables; nothing here changes the global dispatcher.
+ * composed URL, the provider-scoped env, a `fetch` bound to the dispatcher, and
+ * a disposer. The caller threads the dispatcher/fetch into its own requests
+ * and passes the env to SDKs that read proxy variables; nothing here changes
+ * the global dispatcher.
  *
  * @param config - the provider profile's proxy fields.
  * @returns the transport, or `undefined` when no proxy is configured.
@@ -96,10 +103,18 @@ export async function createProviderProxyTransport(
 ): Promise<ProviderProxyTransport | undefined> {
   const url = composeProviderProxyUrl(config)
   if (url === undefined) return undefined
-  const { ProxyAgent } = await import('undici')
+  const { ProxyAgent, fetch: undiciFetch } = await import('undici')
   const dispatcher: Dispatcher = new ProxyAgent(url)
+  const fetch = ((
+    input: Parameters<typeof globalThis.fetch>[0],
+    init?: Parameters<typeof globalThis.fetch>[1],
+  ) => undiciFetch(
+    input as Parameters<typeof undiciFetch>[0],
+    { ...(init ?? {}) as Parameters<typeof undiciFetch>[1], dispatcher },
+  )) as typeof globalThis.fetch
   return {
     dispatcher,
+    fetch,
     env: { HTTPS_PROXY: url, HTTP_PROXY: url, NO_PROXY: '' },
     dispose: () => dispatcher.close().then(() => undefined),
   }
