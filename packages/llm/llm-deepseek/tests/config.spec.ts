@@ -27,4 +27,16 @@ describe('resolveAdapterOptions proxy', () => {
     const resolved = resolveAdapterOptions({ apiKeyEnv: 'DEEPSEEK_API_KEY', proxy: 'https://proxy.example:8080' })
     expect(resolved.proxy).toBe('https://proxy.example:8080')
   })
+
+  it('omits proxy fields when the proxy is absent even with a credential reference', () => {
+    const resolved = resolveAdapterOptions({ apiKeyEnv: 'DEEPSEEK_API_KEY', proxyCredentialEnv: 'MY_PROXY_AUTH' })
+    expect(resolved.proxy).toBeUndefined()
+    expect(resolved.proxyCredentialEnv).toBeUndefined()
+  })
+
+  it('treats an empty proxy string as no proxy', () => {
+    const resolved = resolveAdapterOptions({ apiKeyEnv: 'DEEPSEEK_API_KEY', proxy: '' })
+    expect(resolved.proxy).toBeUndefined()
+    expect(resolved.proxyCredentialEnv).toBeUndefined()
+  })
 })

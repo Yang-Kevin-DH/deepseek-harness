@@ -87,6 +87,12 @@ describe('composeProviderProxyUrl', () => {
     expect(decodeURIComponent(`${parsed.username}:${parsed.password}`)).toBe('alice:p:a:s:s')
   })
 
+  it('uses the whole credential as the username when it has no colon', () => {
+    const parsed = new URL(composeProviderProxyUrl({ proxy: 'http://host:8080', credentials: 'token' })!)
+    expect(decodeURIComponent(parsed.username)).toBe('token')
+    expect(decodeURIComponent(parsed.password)).toBe('')
+  })
+
   it('rejects an unsupported scheme with the shared vocabulary', () => {
     expect(() => composeProviderProxyUrl({ proxy: 'socks5://host:1080' }))
       .toThrow(UNSUPPORTED_PROVIDER_PROXY_PROTOCOL_MESSAGE)

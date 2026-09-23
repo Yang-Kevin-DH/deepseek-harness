@@ -94,8 +94,7 @@ export async function resolveProviderProxyTransport<TRef>(
   const cached = cache.get(key)
   if (cached?.url === url) return cached.transport
   if (cached !== undefined) await cached.transport.dispose()
-  const transport = await createProviderProxyTransport({ proxy: config.proxy, credentials })
-  if (transport === undefined) { cache.delete(key); return undefined }
+  const transport = await buildProxyTransport(url)
   cache.set(key, { url, transport })
   return transport
 }
@@ -134,6 +133,25 @@ export function composeProviderProxyUrl(config: ProviderProxyConfig): string | u
   return parsed.href
 }
 
+/** Build a transport over an already-composed, validated proxy URL; always returns one. */
+async function buildProxyTransport(url: string): Promise<ProviderProxyTransport> {
+  const { ProxyAgent, fetch: undiciFetch } = await import('undici')
+  const dispatcher: Dispatcher = new ProxyAgent(url)
+  const fetch = ((
+    input: Parameters<typeof globalThis.fetch>[0],
+    init?: Parameters<typeof globalThis.fetch>[1],
+  ) => undiciFetch(
+    input as Parameters<typeof undiciFetch>[0],
+    { ...(init ?? {}) as Parameters<typeof undiciFetch>[1], dispatcher },
+  )) as typeof globalThis.fetch
+  return {
+    dispatcher,
+    fetch,
+    env: { HTTPS_PROXY: url, HTTP_PROXY: url, NO_PROXY: '' },
+    dispose: () => dispatcher.close().then(() => undefined),
+  }
+}
+
 /**
  * Build a provider's scoped proxy transport: an undici `ProxyAgent` over the
  * composed URL, the provider-scoped env, a `fetch` bound to the dispatcher, and
@@ -150,19 +168,5 @@ export async function createProviderProxyTransport(
 ): Promise<ProviderProxyTransport | undefined> {
   const url = composeProviderProxyUrl(config)
   if (url === undefined) return undefined
-  const { ProxyAgent, fetch: undiciFetch } = await import('undici')
-  const dispatcher: Dispatcher = new ProxyAgent(url)
-  const fetch = ((
-    input: Parameters<typeof globalThis.fetch>[0],
-    init?: Parameters<typeof globalThis.fetch>[1],
-  ) => undiciFetch(
-    input as Parameters<typeof undiciFetch>[0],
-    { ...(init ?? {}) as Parameters<typeof undiciFetch>[1], dispatcher },
-  )) as typeof globalThis.fetch
-  return {
-    dispatcher,
-    fetch,
-    env: { HTTPS_PROXY: url, HTTP_PROXY: url, NO_PROXY: '' },
-    dispose: () => dispatcher.close().then(() => undefined),
-  }
+  return buildProxyTransport(url)
 }
