@@ -315,7 +315,6 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
               className={styles['input']}
               type="text"
               value={proxyCredentialEnv}
-              placeholder="HTTP_PROXY_AUTH"
               aria-label={t('proxyCredentialEnv')}
               disabled={profileDisabled}
               onChange={(event) => { setProxyCredentialEnv(event.target.value) }}

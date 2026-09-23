@@ -514,7 +514,6 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                     className={styles['input']}
                     type="text"
                     value={stringAt(draft, 'proxyCredentialEnv') ?? ''}
-                    placeholder="HTTP_PROXY_AUTH"
                     aria-label={t('proxyCredentialEnv')}
                     disabled={disabled}
                     onChange={(event) => {
