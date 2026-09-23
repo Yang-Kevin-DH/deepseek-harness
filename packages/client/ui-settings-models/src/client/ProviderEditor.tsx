@@ -33,7 +33,7 @@ import {
 import { apiKeyFailure } from './apiKey.ts'
 import { EditorFooter } from './EditorFooter.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
-import { deriveKeyRef, protocolChoices } from './store.ts'
+import { deriveKeyRef, protocolChoices, validateProxyUrl } from './store.ts'
 import { protocolLabel } from './protocol-label.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { SettingsSchemaOperations } from './schema-operations.ts'
@@ -209,6 +209,12 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
     const value = schema.getPath(source, [key])
     return typeof value === 'string' && value.trim().length > 0 ? value : undefined
   }
+
+  const [useProxy, setUseProxy] = useState(() => Boolean(stringAt(draft, 'proxy') || stringAt(draft, 'proxyCredentialEnv')))
+
+  useEffect(() => {
+    setUseProxy(Boolean(stringAt(draft, 'proxy') || stringAt(draft, 'proxyCredentialEnv')))
+  }, [draft])
   const setField = (key: string, next: string | undefined): void => {
     // A value of nothing but whitespace is cleared, not stored: `stringAt`
     // already reports it as absent, so the field would otherwise render empty
@@ -261,6 +267,16 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
       && stringAt(fallback, 'apiKeyEnv') === undefined && keyValue.length > 0
       ? schema.setPath(draft, ['apiKeyEnv'], keyRef)
       : draft
+    if (useProxy) {
+      const proxyVal = stringAt(draft, 'proxy')
+      if (proxyVal !== undefined && proxyVal.trim().length > 0) {
+        try {
+          validateProxyUrl(proxyVal)
+        } catch (err) {
+          return err instanceof Error ? err.message : String(err)
+        }
+      }
+    }
     if (props.credentialOnly !== true) {
       // The same checker gates the submit button, so a card cannot reach this
       // with a bad row; it stays because the schema check below would refuse
@@ -460,6 +476,54 @@ export function ProviderEditor(props: ProviderEditorProps): ReactNode {
                 </div>
               )
               : null}
+            <div className={styles['field']}>
+              <span className={styles['fieldLabel']}>{t('useProxy')}</span>
+              <input
+                type="checkbox"
+                checked={useProxy}
+                aria-label={t('useProxy')}
+                disabled={disabled}
+                onChange={(event) => {
+                  const checked = event.target.checked
+                  setUseProxy(checked)
+                  if (!checked) {
+                    setDraft(current => schema.deletePath(schema.deletePath(current, ['proxy']), ['proxyCredentialEnv']))
+                  }
+                }}
+              />
+            </div>
+            {useProxy ? (
+              <>
+                <div className={styles['field']}>
+                  <span className={styles['fieldLabel']}>{t('proxyUrl')}</span>
+                  <input
+                    className={styles['input']}
+                    type="text"
+                    value={stringAt(draft, 'proxy') ?? ''}
+                    placeholder={t('proxyUrlPlaceholder')}
+                    aria-label={t('proxyUrl')}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setField('proxy', event.target.value === '' ? undefined : event.target.value)
+                    }}
+                  />
+                </div>
+                <div className={styles['field']}>
+                  <span className={styles['fieldLabel']}>{t('proxyCredentialEnv')}</span>
+                  <input
+                    className={styles['input']}
+                    type="text"
+                    value={stringAt(draft, 'proxyCredentialEnv') ?? ''}
+                    placeholder="HTTP_PROXY_AUTH"
+                    aria-label={t('proxyCredentialEnv')}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      setField('proxyCredentialEnv', event.target.value === '' ? undefined : event.target.value)
+                    }}
+                  />
+                </div>
+              </>
+            ) : null}
             {/* Both families edit the same rows through the same contract; only
                 the extras differ — DeepSeek's inherited capacities, pi-ai's
                 endpoint interrogation. */}

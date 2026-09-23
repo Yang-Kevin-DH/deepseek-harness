@@ -32,7 +32,7 @@ import { EditorFooter } from './EditorFooter.tsx'
 import { validateDeepSeekModels } from './DeepSeekModelsEditor.tsx'
 import { ModelListEditor } from './ModelListEditor.tsx'
 import type { ModelDraft } from './ModelListEditor.tsx'
-import { deriveKeyRef } from './store.ts'
+import { deriveKeyRef, validateProxyUrl } from './store.ts'
 import { protocolLabel } from './protocol-label.ts'
 import type { ModelsOperations } from './operations.ts'
 import type { en } from './locales.ts'
@@ -101,6 +101,9 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
   const [baseURL, setBaseURL] = useState('')
   const [protocol, setProtocol] = useState(protocols[0] ?? '')
   const [keyDraft, setKeyDraft] = useState('')
+  const [useProxy, setUseProxy] = useState(false)
+  const [proxy, setProxy] = useState('')
+  const [proxyCredentialEnv, setProxyCredentialEnv] = useState('')
   const [models, setModels] = useState<readonly ModelDraft[]>([])
   const [busy, setBusy] = useState(false)
   const [listBusy, setListBusy] = useState(false)
@@ -152,11 +155,20 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
 
   /** Perform the create, returning a failure message or undefined. */
   const createOnce = async (): Promise<string | undefined> => {
+    if (useProxy && proxy.trim().length > 0) {
+      try {
+        validateProxyUrl(proxy)
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err)
+      }
+    }
     const keyRef = deriveKeyRef(route)
     const storesKey = keyValue.length > 0
     if (!committed) {
       const profile = {
         ...displayName.length === 0 ? {} : { displayName },
+        ...useProxy && proxy.trim().length > 0 ? { proxy: proxy.trim() } : {},
+        ...useProxy && proxyCredentialEnv.trim().length > 0 ? { proxyCredentialEnv: proxyCredentialEnv.trim() } : {},
         // The profile names the conventional reference only when this card is
         // about to store a key, matching the editor: a route declared with the
         // key left blank keeps its provider-native auth path (a credential
@@ -266,6 +278,51 @@ export function CustomProviderCard(props: CustomProviderCardProps): ReactNode {
           {protocols.map(choice => <option key={choice} value={choice}>{protocolLabel(t, choice)}</option>)}
         </select>
       </div>
+      <div className={styles['field']}>
+        <span className={styles['fieldLabel']}>{t('useProxy')}</span>
+        <input
+          type="checkbox"
+          checked={useProxy}
+          aria-label={t('useProxy')}
+          disabled={profileDisabled}
+          onChange={(event) => {
+            const checked = event.target.checked
+            setUseProxy(checked)
+            if (!checked) {
+              setProxy('')
+              setProxyCredentialEnv('')
+            }
+          }}
+        />
+      </div>
+      {useProxy ? (
+        <>
+          <div className={styles['field']}>
+            <span className={styles['fieldLabel']}>{t('proxyUrl')}</span>
+            <input
+              className={styles['input']}
+              type="text"
+              value={proxy}
+              placeholder={t('proxyUrlPlaceholder')}
+              aria-label={t('proxyUrl')}
+              disabled={profileDisabled}
+              onChange={(event) => { setProxy(event.target.value) }}
+            />
+          </div>
+          <div className={styles['field']}>
+            <span className={styles['fieldLabel']}>{t('proxyCredentialEnv')}</span>
+            <input
+              className={styles['input']}
+              type="text"
+              value={proxyCredentialEnv}
+              placeholder="HTTP_PROXY_AUTH"
+              aria-label={t('proxyCredentialEnv')}
+              disabled={profileDisabled}
+              onChange={(event) => { setProxyCredentialEnv(event.target.value) }}
+            />
+          </div>
+        </>
+      ) : null}
       <div className={styles['field']}>
         <span className={styles['fieldLabel']}>{t('keyInput')}</span>
         <input

@@ -114,6 +114,10 @@ export const en = {
   onboardingSave: 'Save and continue',
   onboardingSaving: 'Saving…',
   keyRequired: 'Enter an API key to continue.',
+  useProxy: 'Use proxy',
+  proxyUrl: 'Proxy URL',
+  proxyUrlPlaceholder: 'http://proxy.example.com:8080',
+  proxyCredentialEnv: 'Proxy Credential Ref',
 }
 
 /** The settings.models namespace key union. */
@@ -233,4 +237,8 @@ export const zh: { [Key in keyof typeof en]: string } = {
   onboardingSave: '保存并继续',
   onboardingSaving: '保存中…',
   keyRequired: '请输入 API 密钥后继续。',
+  useProxy: '使用代理',
+  proxyUrl: '代理服务器地址',
+  proxyUrlPlaceholder: 'http://proxy.example.com:8080',
+  proxyCredentialEnv: '代理凭据引用',
 }
