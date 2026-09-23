@@ -58,6 +58,7 @@ import type {
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import type { ResolvedPiAiProviderProfile } from './config.ts'
+import type { ProviderProxyTransport } from '@deepseek-ai/dsh-http-proxy'
 import { toPiContext } from './context.ts'
 import { createModels, getSupportedThinkingLevels } from './models.ts'
 import { toStreamChunks } from './stream.ts'
@@ -83,6 +84,11 @@ export interface PiAiAdapterOptions {
    * `MISSING_CREDENTIAL` rather than falling back.
    */
   resolveApiKey: (provider: string, profile: ResolvedPiAiProviderProfile) => Promise<string | undefined>
+  /**
+   * Resolve a scoped proxy transport for one route; `undefined` or absent means no per-provider
+   * proxy (the request falls back to the process-wide policy).
+   */
+  resolveProxyTransport?: (provider: string, profile: ResolvedPiAiProviderProfile) => Promise<ProviderProxyTransport | undefined>
   /**
    * How every collection this adapter builds resolves auth the request-level
    * `apiKey` override does not cover. Required rather than optional: a
@@ -346,6 +352,7 @@ export class PiAiAdapter extends LlmAdapter {
       options.reasoningEffort ?? profile.reasoning,
     )
     const apiKey = await this.config.resolveApiKey(options.provider, profile)
+    const proxyTransport = await this.config.resolveProxyTransport?.(options.provider, profile)
 
     const consumer = new AbortController()
     const upstream = options.signal === undefined
@@ -379,6 +386,7 @@ export class PiAiAdapter extends LlmAdapter {
         }, onReplayDegrade)
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
+        ...proxyTransport === undefined ? {} : { fetch: proxyTransport.fetch, env: proxyTransport.env },
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },

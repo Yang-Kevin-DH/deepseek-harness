@@ -180,17 +180,26 @@ export interface PiAiProviderProfile {
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
+  /**
+   * Proxy address (`http://host:port`) routing ONLY this route's requests through the proxy;
+   * web search and other tools stay direct. Omission falls back to the process-wide proxy policy.
+   */
+  proxy?: string
+  /** Credential reference (env-var name) whose value holds the proxy's `user:pass`; mirrors `apiKeyEnv`. */
+  proxyCredentialEnv?: string
 }
 
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
 export interface ResolvedPiAiProviderProfile
-  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName'> {
+  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName' | 'proxyCredentialEnv'> {
   /** Harness route key and the `Models` collection key (the configuration dict key). */
   provider: string
   /** Resolved display name for selectors and configuration surfaces. */
   displayName: string
   /** Validated credential reference, when one is configured. */
   apiKeyEnv?: CredentialRef
+  /** Validated proxy credential reference, when one is configured. */
+  proxyCredentialEnv?: CredentialRef
   /** Positive finite provider-idle interval after defaulting. */
   streamIdleTimeoutMs: number
   /** Positive request-level base64 image payload bound after defaulting. */
@@ -346,6 +355,8 @@ const profile = z.object({
   requestImagePixelBudget: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_PIXEL_BUDGET),
   requestImageMaxBytes: z.number().step(1).min(1).default(DEFAULT_REQUEST_IMAGE_MAX_BYTES),
   retryPolicy: RetryPolicySchema,
+  proxy: z.string(),
+  proxyCredentialEnv: z.string().role('credential-ref'),
 })
 
 /** Runtime schema for {@link Config}. */
@@ -422,6 +433,12 @@ export function resolveProfiles(
     if (source.baseURL !== undefined && source.baseURL.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty baseURL`)
     }
+    if (source.proxy !== undefined && source.proxy !== '') {
+      const proxyParsed = new URL(source.proxy)
+      if (proxyParsed.protocol !== 'http:' && proxyParsed.protocol !== 'https:') {
+        throw new Error(`llm-pi-ai: provider "${provider}" proxy must use http or https, got ${proxyParsed.protocol}`)
+      }
+    }
     if (source.displayName !== undefined && source.displayName.length === 0) {
       throw new Error(`llm-pi-ai: provider "${provider}" has an empty displayName`)
     }
@@ -487,12 +504,13 @@ export function resolveProfiles(
       if (validation === 'strict' || !(error instanceof PiAiCatalogError)) throw error
       catalogError ??= error.message
     }
-    const { apiKeyEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source
+    const { apiKeyEnv, proxyCredentialEnv, retryPolicy, models: _models, displayName: _displayName, ...rest } = source
     resolved.set(provider, {
       ...rest,
       provider,
       displayName,
       ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
+      ...proxyCredentialEnv === undefined ? {} : { proxyCredentialEnv: credentialRef(proxyCredentialEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
       requestImagePixelBudget,

@@ -107,3 +107,26 @@ describe('request image policy bounds', () => {
     }).toThrow(message)
   })
 })
+
+describe('resolveProfiles proxy', () => {
+  it('carries the proxy address and credential reference', () => {
+    const profiles = resolveProfiles(
+      (routeWith({ proxy: 'http://proxy.example:8080', proxyCredentialEnv: 'MY_PROXY_AUTH' })() as Options).providers,
+      'strict',
+    )
+    const profile = profiles.get('acme-gateway')!
+    expect(profile.proxy).toBe('http://proxy.example:8080')
+    expect(profile.proxyCredentialEnv).toBeDefined()
+  })
+
+  it('omits proxy fields when not configured', () => {
+    const profiles = resolveProfiles((routeWith({})() as Options).providers, 'strict')
+    expect(profiles.get('acme-gateway')!.proxy).toBeUndefined()
+    expect(profiles.get('acme-gateway')!.proxyCredentialEnv).toBeUndefined()
+  })
+
+  it('rejects an unsupported proxy scheme at resolution', () => {
+    expect(() => resolveProfiles((routeWith({ proxy: 'socks5://host:1080' })() as Options).providers, 'strict'))
+      .toThrow(/http or https/)
+  })
+})
