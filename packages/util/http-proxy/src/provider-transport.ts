@@ -25,13 +25,13 @@ export interface ProviderProxyConfig {
    * is non-secret and travels in configuration; credentials come from
    * {@link ProviderProxyConfig.credentials}.
    */
-  readonly proxy?: string
+  readonly proxy?: string | undefined
   /**
    * Resolved proxy credentials as `user:pass`. The caller resolves these from
    * its credential reference (env-var name) the way it resolves `apiKeyEnv`,
    * so the secret never travels in configuration.
    */
-  readonly credentials?: string
+  readonly credentials?: string | undefined
 }
 
 /** One provider's scoped proxy transport. {@link ProviderProxyTransport.dispose} releases the dispatcher. */

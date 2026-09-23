@@ -2,6 +2,7 @@
 import type { ModelModality, SystemPromptUpdate, ResolvedRetryPolicy, ImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type { AttachmentStore, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
+import type { ProviderProxyTransport } from '@deepseek-ai/dsh-http-proxy'
 import type { AnonymousUserId } from '@deepseek-ai/dsh-anonymous-user-id'
 import type { DeepSeekLlmApiExtensionRequest, PreparedDeepSeekLlmApiExtensions } from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
 import type { DeepSeekFileStore, DeepSeekFilePolicy } from './file-store.ts'
@@ -80,6 +81,13 @@ export interface DeepSeekConnectionOptions {
   filePolicy: DeepSeekFilePolicy
   /** Provider-owned model-request retry policy, already resolved. */
   retryPolicy: ResolvedRetryPolicy
+  /**
+   * Proxy address routing only this provider's requests; `undefined` falls back to the
+   * process-wide proxy policy. Validated to http/https at resolution.
+   */
+  proxy?: string
+  /** Credential reference resolved per request to the proxy's `user:pass`; `undefined` when the proxy needs no auth. */
+  proxyCredentialEnv?: CredentialRef
 }
 
 /** Constructor options for {@link DeepSeekAdapter}: the operation-local resolution hooks the plugin owns. */
@@ -107,6 +115,11 @@ export interface DeepSeekAdapterOptions {
   resolveFiles?: () => DeepSeekFileStore
   /** Prepare the official API's plugin-contributed top-level fields for one exact wire request. */
   prepareExtensions: (request: DeepSeekLlmApiExtensionRequest) => Promise<PreparedDeepSeekLlmApiExtensions>
+  /**
+   * Resolve a scoped proxy transport for one request's connection facts; `undefined` or absent
+   * means no per-provider proxy (the request falls back to the process-wide policy).
+   */
+  resolveProxyTransport?: (connection: DeepSeekConnectionOptions) => Promise<ProviderProxyTransport | undefined>
 }
 
 

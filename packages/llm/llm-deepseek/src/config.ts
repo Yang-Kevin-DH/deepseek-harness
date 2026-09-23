@@ -64,6 +64,14 @@ export interface Config {
   fileQuotaCleanupBatch: Volatile<number>
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy: Volatile<RetryPolicyConfig | undefined>
+  /**
+   * Proxy address (`http://host:port`) routing ONLY this provider's requests through the proxy;
+   * web search and other tools stay direct. Omission falls back to the process-wide proxy policy
+   * (e.g. `~/.dsh/.env`), so a global proxy keeps working when this is unset.
+   */
+  proxy: Volatile<string | undefined>
+  /** Credential reference (env-var name) whose value holds the proxy's `user:pass`; mirrors `apiKeyEnv`. */
+  proxyCredentialEnv: Volatile<string | undefined>
 }
 
 /** Plain options accepted by the provider resolver. */
@@ -109,6 +117,8 @@ export const Config = z.object({
   fileRefreshMarginSeconds: z.number().step(1).min(0).default(DEFAULT_FILE_REFRESH_MARGIN_SECONDS).volatile(),
   fileQuotaCleanupBatch: z.number().step(1).min(1).max(1_000).default(DEFAULT_FILE_QUOTA_CLEANUP_BATCH).volatile(),
   retryPolicy: RetryPolicySchema.volatile(),
+  proxy: z.string().volatile(),
+  proxyCredentialEnv: z.string().role('credential-ref').volatile(),
 })
 
 /** Public API default; the internal endpoint comes from $DEEPSEEK_BASE_URL. */
@@ -301,6 +311,16 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
   if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
     throw new Error('llm-deepseek: Messages baseURL must be an HTTP(S) root without credentials, query, or fragment')
   }
+  const proxy = config.proxy === '' ? undefined : config.proxy
+  const proxyCredentialEnv = proxy === undefined || config.proxyCredentialEnv === undefined
+    ? undefined
+    : credentialRef(config.proxyCredentialEnv)
+  if (proxy !== undefined) {
+    const proxyParsed = new URL(proxy)
+    if (proxyParsed.protocol !== 'http:' && proxyParsed.protocol !== 'https:') {
+      throw new Error(`llm-deepseek: proxy must use http or https, got ${proxyParsed.protocol}`)
+    }
+  }
   return {
     apiKeyEnv: credentialRef(config.apiKeyEnv ?? DEFAULT_API_KEY_ENV),
     baseURL,
@@ -325,5 +345,9 @@ export function resolveAdapterOptions(config: Options, environment?: LaunchEnvir
       quotaCleanupBatch: fileQuotaCleanupBatch,
     },
     retryPolicy: resolveRetryPolicy(config.retryPolicy, 'llm-deepseek: retryPolicy'),
+    ...proxy === undefined ? {} : {
+      proxy,
+      ...proxyCredentialEnv === undefined ? {} : { proxyCredentialEnv },
+    },
   }
 }

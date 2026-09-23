@@ -25,6 +25,8 @@ export interface DeepSeekFileConnection {
   apiKey: string
   /** Use the DSH account header; omitted for ordinary API keys. */
   accountCredential?: boolean
+  /** Per-request fetch override (e.g. a per-provider proxy transport); omitted uses the store default. */
+  fetch?: typeof fetch
 }
 
 /** Result of one file-id resolution. */
@@ -135,11 +137,12 @@ export class DeepSeekFileStore {
   }
 
   private client(connection: DeepSeekFileConnection): DeepSeekFilesClient {
+    const fetchImpl = connection.fetch ?? this.fetchImpl
     return new DeepSeekFilesClient({
       baseURL: connection.baseURL,
       apiKey: connection.apiKey,
       ...connection.accountCredential === undefined ? {} : { accountCredential: connection.accountCredential },
-      ...this.fetchImpl === undefined ? {} : { fetch: this.fetchImpl },
+      ...fetchImpl === undefined ? {} : { fetch: fetchImpl },
     })
   }
 

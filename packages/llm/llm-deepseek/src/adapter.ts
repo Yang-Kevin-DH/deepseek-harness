@@ -82,8 +82,10 @@ export class DeepSeekAdapter extends LlmAdapter {
     )
     const accountToken = await this.dependencies.resolveAccountToken?.(connection)
     const key = accountToken ?? await this.dependencies.resolveApiKey(connection)
+    const proxyTransport = await this.dependencies.resolveProxyTransport?.(connection)
     const files = new RequestFiles(this.files, {
       baseURL: connection.baseURL, apiKey: key, accountCredential: accountToken !== undefined,
+      ...proxyTransport === undefined ? {} : { fetch: proxyTransport.fetch },
     },
     connection.filePolicy, connection.filesApiTimeoutMs, signal, activity)
     let inline = false
@@ -110,7 +112,8 @@ export class DeepSeekAdapter extends LlmAdapter {
         ...options.purpose === undefined ? {} : { purpose: options.purpose },
       }, this.dependencies.prepareExtensions)
       signal.throwIfAborted()
-      const response = await fetch(`${messagesApiRoot(connection.baseURL)}/messages`, {
+      const requestFetch = proxyTransport?.fetch ?? fetch
+      const response = await requestFetch(`${messagesApiRoot(connection.baseURL)}/messages`, {
         method: 'POST', signal, body: extensions.payload, redirect: 'error',
         headers: {
           ...attributionHeaders(),
