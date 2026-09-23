@@ -155,7 +155,11 @@ describe('ProviderEditor proxy fields', () => {
     // An empty value exercises the clear-to-undefined branch; a non-empty value the other.
     fireEvent.change(proxyInput, { target: { value: '' } })
     fireEvent.change(proxyInput, { target: { value: 'http://proxy.example:8080' } })
-    fireEvent.change(screen.getByLabelText(en.proxyCredentialEnv), { target: { value: 'MY_PROXY_AUTH' } })
+    const credInput = screen.getByLabelText(en.proxyCredentialEnv)
+    fireEvent.change(credInput, { target: { value: '' } })
+    fireEvent.change(credInput, { target: { value: 'MY_PROXY_AUTH' } })
+    // Applying runs the proxy validation path.
+    fireEvent.click(screen.getByText(en.apply))
 
     expect((screen.getByLabelText(en.proxyUrl) as HTMLInputElement).value).toBe('http://proxy.example:8080')
     expect((screen.getByLabelText(en.proxyCredentialEnv) as HTMLInputElement).value).toBe('MY_PROXY_AUTH')
