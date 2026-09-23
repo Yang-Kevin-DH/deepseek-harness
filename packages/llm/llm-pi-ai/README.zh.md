@@ -72,6 +72,20 @@ kind: "package-reference"
               high: high
 ```
 
+### 针对特定提供商的代理
+
+将指定提供商路由的请求通过专用的 HTTP/HTTPS 代理路由，且不影响其他提供商或工具流量。忽略这两个字段将保留进程级代理策略。
+
+```yaml
+- name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      openai:
+        apiKeyEnv: OPENAI_API_KEY
+        proxy: http://127.0.0.1:8080
+        proxyCredentialEnv: MY_PROXY_AUTH
+```
+
 | 字段 | 默认值 | 含义 |
 |---|---|---|
 | `apiKeyEnv` | 无 | 按请求解析的凭据引用；省略时交由 pi-ai 环境发现 |

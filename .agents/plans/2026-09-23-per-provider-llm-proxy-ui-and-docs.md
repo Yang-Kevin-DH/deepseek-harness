@@ -8,11 +8,11 @@
 
 **Tech Stack:** React + schemastery/z (settings store schema), vitest (client specs), VitePress + bilingual Markdown (docs), the repo's `pnpm run` gates.
 
-**Spec:** The four committed phases on `feature/per-provider-llm-proxy`:
-- `772b9e1955` feat(http-proxy): add per-provider proxy transport factory
-- `49edf8bad0` feat(http-proxy): expose fetch override on per-provider transport
-- `a4f8b876dd` feat(llm-deepseek): route model requests and file uploads through a per-provider proxy
-- `d3af973be8` feat(llm-pi-ai): route model requests through a per-route proxy
+**Spec:** The four landed commits on `feature/per-provider-llm-proxy` (run `git log --oneline feature/per-provider-llm-proxy` to see their hashes):
+- feat(http-proxy): add per-provider proxy transport factory
+- feat(http-proxy): expose fetch override on per-provider transport
+- feat(llm-deepseek): route model requests and file uploads through a per-provider proxy
+- feat(llm-pi-ai): route model requests through a per-route proxy
 
 Read those commits' diffs before starting; they define the exact config field names (`proxy`, `proxyCredentialEnv`), the credential-ref role, and the transport API this UI/docs work surfaces.
 
@@ -54,7 +54,7 @@ Copied verbatim from the repo (`AGENTS.md`) and the landed phases; every task im
 
 ## Task 1: Map the provider-settings UI subsystem (investigation only, no commit)
 
-**Files:** Read only — `packages/client/ui-settings-models/src/client/store.ts`, `ProviderEditor.tsx`, `CustomProviderCard.tsx`, `ModelsSection.tsx`, `locales.ts`; and `packages/llm/llm-pi-ai/src/config.ts` (the `PiAiProviderProfile` `proxy`/`proxyCredentialEnv` fields added in `d3af973be8`) + `packages/llm/llm-deepseek/src/config.ts` (added in `a4f8b876dd`).
+**Files:** Read only — `packages/client/ui-settings-models/src/client/store.ts`, `ProviderEditor.tsx`, `CustomProviderCard.tsx`, `ModelsSection.tsx`, `locales.ts`; and `packages/llm/llm-pi-ai/src/config.ts` (the `PiAiProviderProfile` `proxy`/`proxyCredentialEnv` fields added in the llm-pi-ai commit above) + `packages/llm/llm-deepseek/src/config.ts` (added in the llm-deepseek commit above).
 
 **Interfaces:** Produces (written into the next task's prompt, not a file): the exact schema field name + location for `apiKeyEnv` in the settings store, the component that renders it, and the locale key pattern.
 

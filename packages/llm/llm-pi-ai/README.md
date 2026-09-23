@@ -72,6 +72,20 @@ Each profile may set a `retryPolicy`; omission uses normal mode with five retrie
               high: high
 ```
 
+### Per-provider proxy
+
+Route requests for a specific provider route through a dedicated HTTP/HTTPS proxy without affecting other providers or tool traffic. Omit both fields to keep process-wide proxy rules.
+
+```yaml
+- name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      openai:
+        apiKeyEnv: OPENAI_API_KEY
+        proxy: http://127.0.0.1:8080
+        proxyCredentialEnv: MY_PROXY_AUTH
+```
+
 | Field | Default | Meaning |
 |---|---|---|
 | `apiKeyEnv` | absent | Credential reference resolved per request; omission defers to pi-ai ambient discovery |

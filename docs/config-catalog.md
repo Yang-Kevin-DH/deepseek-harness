@@ -1466,6 +1466,14 @@ export interface Config {
   fileQuotaCleanupBatch: Volatile<number>
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy: Volatile<RetryPolicyConfig | undefined>
+  /**
+   * Proxy address (`http://host:port`) routing ONLY this provider's requests through the proxy;
+   * web search and other tools stay direct. Omission falls back to the process-wide proxy policy
+   * (e.g. `~/.dsh/.env`), so a global proxy keeps working when this is unset.
+   */
+  proxy: Volatile<string | undefined>
+  /** Credential reference (env-var name) whose value holds the proxy's `user:pass`; mirrors `apiKeyEnv`. */
+  proxyCredentialEnv: Volatile<string | undefined>
 }
 
 /** One optional model entry advertised by the direct-fetch adapter. */
@@ -1612,6 +1620,13 @@ export interface PiAiProviderProfile {
   requestImageMaxBytes?: number
   /** Provider-owned model-request retry policy; omission uses normal mode with five retries. */
   retryPolicy?: RetryPolicyConfig
+  /**
+   * Proxy address (`http://host:port`) routing ONLY this route's requests through the proxy;
+   * web search and other tools stay direct. Omission falls back to the process-wide proxy policy.
+   */
+  proxy?: string
+  /** Credential reference (env-var name) whose value holds the proxy's `user:pass`; mirrors `apiKeyEnv`. */
+  proxyCredentialEnv?: string
 }
 
 /** One configured model entry: an id plus the catalog fields it overrides. */
@@ -1776,7 +1791,7 @@ export type PiAiThinkingTokenBudgetField = NonNullable<OpenAICompletionsCompat['
 
 Depends on: `Api` (`@earendil-works/pi-ai`) · `CacheRetention` (`@earendil-works/pi-ai`) · `Model` (`@earendil-works/pi-ai`) · `ModelThinkingLevel` (`@earendil-works/pi-ai`) · `OpenAICompletionsCompat` (`@earendil-works/pi-ai`) · [`RetryPolicyConfig`](../packages/llm/llm/src/index.ts) · `ThinkingBudgets` (`@earendil-works/pi-ai`) · `Transport` (`@earendil-works/pi-ai`) · `Volatile` (`@deepseek-ai/cordis`)
 
-Source: [`packages/llm/llm-pi-ai/src/config.ts:222`](../packages/llm/llm-pi-ai/src/config.ts)
+Source: [`packages/llm/llm-pi-ai/src/config.ts:231`](../packages/llm/llm-pi-ai/src/config.ts)
 
 <a id="deepseek-aidsh-llm-replay"></a>
 
