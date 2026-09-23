@@ -1,5 +1,7 @@
 /** Profile patch edits and credential updates reach the next real adapter request. */
 
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -266,5 +268,55 @@ describe('llm-pi-ai real dormant composition', () => {
         { role: 'user', content: 'continue' },
       ],
     })
+  })
+
+  it('routes requests through a configured per-provider proxy', async () => {
+    vi.stubEnv('PI_COMPOSITION_KEY', 'test-key')
+    vi.stubEnv('MY_PROXY_CRED', 'usr:pwd')
+
+    let proxySeen = false
+    const proxyServer = createServer((request, response) => {
+      proxySeen = true
+      response.writeHead(502)
+      response.end('proxy-err')
+    })
+    proxyServer.on('connect', (request, socket) => {
+      proxySeen = true
+      socket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n')
+      socket.end()
+    })
+    const proxyPort = await new Promise<number>((resolve) => {
+      proxyServer.listen(0, '127.0.0.1', () => {
+        resolve((proxyServer.address() as AddressInfo).port)
+      })
+    })
+
+    try {
+      const { ctx, settingsPath } = await loadComposition()
+      await writeFile(settingsPath, [
+        '- id: llm-pi-ai',
+        '  config:',
+        '    providers:',
+        '      deepseek:',
+        '        apiKeyEnv: PI_COMPOSITION_KEY',
+        '        baseURL: http://127.0.0.1:9999/v1',
+        `        proxy: http://127.0.0.1:${proxyPort}`,
+        '        proxyCredentialEnv: MY_PROXY_CRED',
+        '',
+      ].join('\n'))
+
+      await vi.waitFor(() => {
+        expect(ctx.llm.listProviders().map(provider => provider.id)).toEqual(['deepseek'])
+      }, { timeout: 5000 })
+
+      await assemble(ctx, {
+        provider: 'deepseek',
+        model: 'deepseek-v4-flash',
+        messages: [],
+      }).catch(() => {})
+      expect(proxySeen).toBe(true)
+    } finally {
+      await new Promise<void>((resolve) => { proxyServer.close(() => resolve()) })
+    }
   })
 })
