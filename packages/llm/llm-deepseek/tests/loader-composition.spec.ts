@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { createServer, type Server } from 'node:http'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
@@ -240,5 +241,65 @@ describe('llm-deepseek real dynamic composition', () => {
     expect(ctx.get('credentials')).toBeUndefined()
     await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
     expect(server.headers[0]?.['x-api-key']).toBe('entry-key')
+  })
+
+  it('delegates requests through proxy transport when configured', async () => {
+    vi.stubEnv('DEEPSEEK_API_KEY', '')
+    const server = await mockServer([{ kind: 'sse', events: textEvents }])
+
+    let proxyHits = 0
+    let proxiedAuthHeader: string | undefined
+    const proxyServer: Server = createServer((req, res) => {
+      proxyHits++
+      proxiedAuthHeader = req.headers['proxy-authorization']
+      fetch(req.url!, {
+        method: req.method,
+        headers: req.headers as Record<string, string>,
+        body: req,
+        duplex: 'half',
+      } as RequestInit).then(async (targetRes) => {
+        res.writeHead(targetRes.status, Object.fromEntries(targetRes.headers.entries()))
+        if (targetRes.body) {
+          const reader = targetRes.body.getReader()
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            res.write(value)
+          }
+        }
+        res.end()
+      }).catch((err) => {
+        res.writeHead(500)
+        res.end(String(err))
+      })
+    })
+
+    await new Promise<void>(resolve => proxyServer.listen(0, '127.0.0.1', resolve))
+    const proxyPort = (proxyServer.address() as { port: number }).port
+    const proxyUrl = `http://127.0.0.1:${proxyPort}`
+
+    try {
+      vi.stubEnv('MY_PROXY_CREDENTIAL', 'user:pass')
+      const proxyTargetUrl = `${server.url}/`
+      const { ctx, settingsPath } = await loadComposition({
+        withDynamic: true,
+        baseURL: proxyTargetUrl,
+      })
+      await writeFile(settingsPath, JSON.stringify([{
+        id: NS,
+        config: { baseURL: proxyTargetUrl, proxy: proxyUrl, proxyCredentialEnv: 'MY_PROXY_CREDENTIAL' },
+      }]))
+      await vi.waitFor(() => {
+        const row = ctx.settings.describe().find(r => r.ns === NS)
+        expect((row?.value as { proxy?: string })?.proxy).toBe(proxyUrl)
+      }, { timeout: 5000 })
+
+      await assemble(ctx, { model: 'deepseek-v4-flash', messages: [] })
+      expect(proxyHits).toBe(1)
+      expect(proxiedAuthHeader).toBe(`Basic ${Buffer.from('user:pass').toString('base64')}`)
+      expect(server.headers[0]?.['x-api-key']).toBe('boot-key')
+    } finally {
+      await new Promise<void>(resolve => proxyServer.close(() => resolve()))
+    }
   })
 })
