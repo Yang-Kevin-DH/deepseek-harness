@@ -55,8 +55,8 @@ const NAMESPACES = [
   {
     ns: 'llm-pi-ai',
     schema: {},
-    value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' } } },
-    user: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY' } } },
+    value: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', proxy: 'http://proxy.openai:8080', proxyCredentialEnv: 'OPENAI_PROXY_AUTH' } } },
+    user: { providers: { openai: { apiKeyEnv: 'OPENAI_API_KEY', proxy: 'http://proxy.openai:8080', proxyCredentialEnv: 'OPENAI_PROXY_AUTH' } } },
     autoGenerate: true, applies: 'live' as const,
     secrets: [],
     revision: 0,
@@ -141,6 +141,8 @@ describe('ModelsSettingsStore', () => {
       configured: true,
       removable: true,
       apiKeyEnv: 'OPENAI_API_KEY',
+      proxy: 'http://proxy.openai:8080',
+      proxyCredentialEnv: 'OPENAI_PROXY_AUTH',
       credential: { configured: true },
     })
     expect(byProvider.get('anthropic')).toMatchObject({ configured: false, removable: false })
