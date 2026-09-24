@@ -275,12 +275,12 @@ describe('llm-pi-ai real dormant composition', () => {
     vi.stubEnv('MY_PROXY_CRED', 'usr:pwd')
 
     let proxySeen = false
-    const proxyServer = createServer((request, response) => {
+    const proxyServer = createServer((_request, response) => {
       proxySeen = true
       response.writeHead(502)
       response.end('proxy-err')
     })
-    proxyServer.on('connect', (request, socket) => {
+    proxyServer.on('connect', (_request, socket) => {
       proxySeen = true
       socket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n')
       socket.end()

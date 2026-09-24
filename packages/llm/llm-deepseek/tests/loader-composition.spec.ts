@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createServer, type Server } from 'node:http'
+import { Readable } from 'node:stream'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
@@ -255,9 +256,9 @@ describe('llm-deepseek real dynamic composition', () => {
       fetch(req.url!, {
         method: req.method,
         headers: req.headers as Record<string, string>,
-        body: req,
+        body: Readable.toWeb(req) as ReadableStream<Uint8Array>,
         duplex: 'half',
-      } as RequestInit).then(async (targetRes) => {
+      } as RequestInit & { duplex?: string }).then(async (targetRes) => {
         res.writeHead(targetRes.status, Object.fromEntries(targetRes.headers.entries()))
         if (targetRes.body) {
           const reader = targetRes.body.getReader()
