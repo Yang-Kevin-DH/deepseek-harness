@@ -89,7 +89,7 @@ const TARGETS: Record<DesktopPackageTargetName, DesktopPackageTarget> = {
  */
 export function withoutWindowsSigningEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(environment)
-    .filter(([name]) => !name.startsWith(WINDOWS_SIGNING_ENV_PREFIX)))
+    .filter(([name]) => !name.startsWith(WINDOWS_SIGNING_ENV_PREFIX) || name === 'DSH_DESKTOP_WINDOWS_DISABLE_UPDATES'))
 }
 
 /**

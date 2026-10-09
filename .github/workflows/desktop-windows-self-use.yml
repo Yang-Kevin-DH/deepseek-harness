@@ -1,0 +1,122 @@
+name: Windows Desktop Self-Use
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: Installer version extending the repository product version
+        required: true
+        default: '0.1.7-alpha.1.20261009.1'
+        type: string
+  push:
+    branches: [feature/custom-dev]
+    paths:
+      - .github/workflows/desktop-windows-self-use.yml
+      - apps/desktop/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-windows-self-use-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    name: Unsigned Windows x64 Installer
+    runs-on: windows-2025
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
+      DSH_TELEMETRY_DISABLED: '1'
+      BUILD_VERSION: ${{ inputs.build_version || '0.1.7-alpha.1.20261009.1' }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enable Windows symlinks
+        run: |
+          reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v "AllowDevelopmentWithoutDevLicense" /d "1"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot enable Windows symlinks' }
+
+      - uses: pnpm/action-setup@v4
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm-desktop
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure self-use installer
+        run: |
+          @(
+            'DSH_DESKTOP_APP_ID=com.yangkevin.deepseek.harness'
+            'DSH_DESKTOP_WINDOWS_DISABLE_UPDATES=1'
+          ) | Set-Content -LiteralPath apps/desktop/.env.windows -Encoding utf8
+
+      - name: Check packaging configuration and toolchain
+        run: pnpm --dir apps/desktop run package:win:x64:unsigned --check --build-version $env:BUILD_VERSION
+
+      - name: Test self-use packaging and startup
+        run: >-
+          pnpm exec vitest run --testTimeout 30000
+          apps/desktop/tests/desktop-policy-environment.spec.ts
+          apps/desktop/tests/windows-update-publisher.spec.ts
+          apps/desktop/tests/desktop-package-environment.spec.ts
+          apps/desktop/tests/package-target.spec.ts
+          apps/desktop/tests/package-target-stages.spec.ts
+          apps/desktop/tests/main-startup.spec.ts
+
+      - name: Build and verify installer
+        run: pnpm --dir apps/desktop run package:win:x64:unsigned --build-version $env:BUILD_VERSION
+
+      - name: Verify installer and write checksum
+        run: |
+          $artifactRoot = 'apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts'
+          $installers = @(Get-ChildItem -LiteralPath $artifactRoot -Filter '*.exe' -File)
+          if ($installers.Count -ne 1) { throw "Expected one installer, found $($installers.Count)" }
+          $installer = $installers[0]
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($installer.Name)" | Set-Content -LiteralPath "$($installer.FullName).sha256" -Encoding utf8
+          @(
+            "Version: $env:BUILD_VERSION"
+            "Commit: $env:GITHUB_SHA"
+            'Windows x64; unsigned; automatic and mandatory updates disabled.'
+            'Download the installer artifact below after all steps succeed.'
+          ) | Out-File -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-desktop-self-use-${{ env.BUILD_VERSION }}
+          path: |
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload packaging diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-desktop-packaging-diagnostics
+          path: apps/desktop/.desktop-build/packaging-runs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Remove local packaging settings
+        if: always()
+        run: Remove-Item -LiteralPath apps/desktop/.env.windows -Force -ErrorAction SilentlyContinue

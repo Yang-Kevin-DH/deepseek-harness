@@ -343,6 +343,22 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('serves inactive mandatory status without a development policy and removes IPC on shutdown', async () => {
+    harness.app.isPackaged = false
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    const window = harness.windows[0]!
+    const owned = { sender: window.webContents, senderFrame: window.webContents.mainFrame }
+    const status = harness.handlers.get(MANDATORY_IPC.status)
+    expect(status).toBeDefined()
+    expect(status!(owned)).toMatchObject({ policy: { blocking: false, checking: false }, deferred: false })
+    expect(() => status!({ ...owned, sender: {} })).toThrow('unowned renderer')
+    expect(() => harness.handlers.get(MANDATORY_IPC.action)!(owned, 'refresh')).toThrow('no mandatory decision')
+    harness.app.quit()
+    expect(harness.handlers.has(MANDATORY_IPC.status)).toBe(false)
+    expect(harness.handlers.has(MANDATORY_IPC.action)).toBe(false)
+  })
+
   it('routes shell update documents and assets through the registered main protocol handler', async () => {
     const root = join(import.meta.dirname, '..')
     vi.spyOn(harness.app, 'getAppPath').mockReturnValue(root)

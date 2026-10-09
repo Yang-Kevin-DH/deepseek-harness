@@ -261,9 +261,11 @@ Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置�
 pnpm run package:desktop:win:x64:unsigned
 ```
 
-该命令要求设置 `DSH_DESKTOP_APP_ID` 并具备常规构建依赖，包括编译原生模块所需的 Python 和 Visual C++ 构建工具。Python 不在 `PATH` 中时，将 `PYTHON` 设置为其可执行文件路径。命令将安装包写入 `.desktop-build/targets/win-x64/unsigned-artifacts/`，省略自动更新配置，清除签名凭据，且不生成发布完成记录。它不需要 EV 凭据或更新源地址。签名打包和上传命令仍遵循正式发布要求。
+该命令要求设置 `DSH_DESKTOP_APP_ID` 并具备常规构建依赖，包括编译原生模块所需的 Python 和 Visual C++ 构建工具。Python 不在 `PATH` 中时，将 `PYTHON` 设置为其可执行文件路径。自用时，在 `.env.windows` 中设置 `DSH_DESKTOP_WINDOWS_DISABLE_UPDATES=1`，同时省略强制更新策略；此模式无需策略源站或登录配置。仅未签名 Windows 安装包接受此设置。命令将安装包写入 `.desktop-build/targets/win-x64/unsigned-artifacts/`，省略自动更新配置，清除签名凭据，且不生成发布完成记录。它不需要 EV 凭据或更新 feed 源地址。签名打包和上传命令仍遵循正式发布要求。
 
 ### Windows 安装界面
+
+[Windows Desktop Self-Use 工作流](../../.github/workflows/desktop-windows-self-use.yml)使用 GitHub 托管的 Windows 构建未签名 Windows x64 安装包，并关闭两项更新服务。推送到 `feature/custom-dev` 的 Desktop 修改会触发构建；工作流进入默认分支后，手动运行可指定构建版本。打开已完成的 Actions 运行，从 Artifacts 下载 `windows-desktop-self-use-<version>`。解压 ZIP 后运行安装包；旁边的 `.sha256` 文件记录校验值。安装包产物保留 14 天。工作流无需签名或更新服务密钥，并在上传安装包前执行打包配置检查、相关测试和打包流程的运行时检查。
 
 Windows 安装程序使用原生 NSIS 页面，提供亮暗配色、系统阴影、可编辑的安装目录，以及默认勾选立即启动的完成页。安装仅面向当前用户。点击安装或按 Enter 均校验当前路径；新安装位置必须为空，非空位置必须是已登记的安装目录。受影响安装路径中的程序运行时显示系统提示，并保持应用运行；其他目录中的同名应用不阻止安装。静默更新最多等待受影响应用退出十秒，若仍在运行则以退出码 2 结束。
 
@@ -352,7 +354,9 @@ macOS 打包在组装 App 时、代码签名前写入 `Contents/Resources/app-up
 
 ### 强制更新策略
 
-[强更客户端决策](../../.agents/notes/implemented/feature/2026-09-11-desktop-mandatory-update-client.zh.md)负责策略查询和阻塞窗口。打包读取 `.env.windows` 或 `.env.macos`：`DSH_DESKTOP_AUTO_UPDATE_ENV=test`（默认值）选择 `DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN`；`production` 选择 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN`。模板将两个源站留空；在 Git 忽略的目标 dotenv 文件中填写所选部署的源站。在准备产物或签名前，所选源站必须配置，包括未签名和仅准备构建；未选环境的源站可不填。这些配置不会回退到父进程环境或另一部署环境。打包将选定策略与应用 ID 写入元数据；打包应用忽略运行时覆盖。
+未配置开发模式策略时，Windows 外壳为强制更新状态请求返回非阻塞状态，并拒绝更新操作。外壳在加载应用文档前注册此 IPC，并在关闭时移除。
+
+[强更客户端决策](../../.agents/notes/implemented/feature/2026-09-11-desktop-mandatory-update-client.zh.md)负责策略查询和阻塞窗口。打包读取 `.env.windows` 或 `.env.macos`：`DSH_DESKTOP_AUTO_UPDATE_ENV=test`（默认值）选择 `DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN`；`production` 选择 `DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN`。模板将两个源站留空；在 Git 忽略的目标 dotenv 文件中填写所选部署的源站。在准备产物或签名前，所选源站必须配置，但关闭更新的未签名自用包除外；未选环境的源站可不填。这些配置不会回退到父进程环境或另一部署环境。打包将选定策略与应用 ID 写入元数据；打包应用忽略运行时覆盖。
 
 `DSH_DESKTOP_MANDATORY_UPDATE_CONFIG` JSON 提供测试登录源站，以及可选的轮询和下载页面选项；打包拒绝其中的 `origin` 和 `authentication`。页面白名单默认只包含所选服务源站；需要其他已批准下载页面源站时应显式配置。测试包选择 `feishu-test`，且必须在 `DSH_DESKTOP_MANDATORY_UPDATE_CONFIG` 中配置 `allowedAuthOrigins`；正式包选择 `anonymous`，并拒绝该字段。每个登录源站必须是没有凭据、路径、查询或片段的 HTTPS origin。登录窗口仅允许文档导航到所选策略源站和这些已配置源站。策略请求拒绝重定向；仅测试鉴权携带网关 Cookie。未打包开发模式则从此变量读取完整策略 JSON，并要求 `DSH_DESKTOP_APP_ID`；缺少 JSON 会禁用开发模式策略查询，仅匿名开发允许 HTTP `127.0.0.1`。用户发起常规检查时会并发触发策略检查，但不会等待或展示策略失败。只有已确认的强更决定可以关闭常规弹窗。测试环境鉴权会等待当前常规弹窗结束，取消或失败不会丢弃 updater 结果。
 

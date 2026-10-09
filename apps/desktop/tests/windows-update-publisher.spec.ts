@@ -57,6 +57,17 @@ describe('Windows update publisher', () => {
   })
   afterAll(() => vi.unstubAllEnvs())
 
+  it('omits policy and update publication from unsigned self-use installers', async () => {
+    const { createElectronBuilderConfig } = await import('../electron-builder.config.mjs')
+    const config = createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.selfuse',
+      DSH_DESKTOP_UNSIGNED: '1', DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: '1' }, 'win32', 'x64')
+    expect(config.extraMetadata).not.toHaveProperty('dshMandatoryUpdatePolicy')
+    expect(config.publish).toBeNull()
+    expect(config.win.forceCodeSigning).toBe(false)
+    expect(() => createElectronBuilderConfig({ DSH_DESKTOP_APP_ID: 'com.example.selfuse',
+      DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: '1' }, 'win32', 'x64')).toThrow('unsigned Windows')
+  })
+
   it('preserves organization identity and escapes DN delimiters using the updater parser', async () => {
     const subject = { CN: '测试 "Publisher", Inc;+\\', O: ' Leading=org ', C: 'CN', ST: 'State' }
     await withCertificate(subject, async (file) => {

@@ -1,11 +1,26 @@
 import { expect, it } from 'vitest'
-import { resolveDesktopPolicyEnvironment } from '../scripts/desktop-policy-environment.mjs'
+import { desktopUpdatesDisabled, resolveDesktopPolicyEnvironment } from '../scripts/desktop-policy-environment.mjs'
 import { validateDesktopPackageEnvironment } from '../scripts/desktop-package-environment.mjs'
 import { resolveDesktopPolicyConfig } from '../src/mandatory-update-policy.ts'
 
 const origins = { DSH_DESKTOP_MANDATORY_UPDATE_TEST_ORIGIN: 'https://test.example.com',
   DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://prod.example.com' }
 const auth = { DSH_DESKTOP_MANDATORY_UPDATE_CONFIG: JSON.stringify({ allowedAuthOrigins: ['https://login.example.com'] }) }
+
+it('disables policy only for explicitly selected unsigned Windows self-use packages', () => {
+  const environment = { DSH_DESKTOP_APP_ID: 'com.example.selfuse', DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: '1' }
+  expect(() => { validateDesktopPackageEnvironment(environment, { platform: 'win32', arch: 'x64' }, { unsigned: true }) }).not.toThrow()
+  expect(() => { validateDesktopPackageEnvironment(environment, { platform: 'win32', arch: 'x64' }) }).toThrow('unsigned Windows')
+  expect(() => { validateDesktopPackageEnvironment(environment, { platform: 'darwin', arch: 'x64' }, { unsigned: true }) }).toThrow('unsigned Windows')
+})
+
+it.each(['', 'true', '2'])('rejects an invalid self-use update setting %s', (value) => {
+  expect(() => desktopUpdatesDisabled({ DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: value }, true, 'win32')).toThrow('must be 0 or 1')
+})
+
+it.each([undefined, '0'])('retains policy requirements when the self-use setting is %s', (value) => {
+  expect(desktopUpdatesDisabled({ DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: value }, true, 'win32')).toBe(false)
+})
 
 it.each(['test', 'production'] as const)('selects the %s policy and authentication together', (deployment) => {
   const policy = resolveDesktopPolicyEnvironment({ ...origins, ...(deployment === 'test' ? auth : {}), DSH_DESKTOP_AUTO_UPDATE_ENV: deployment })

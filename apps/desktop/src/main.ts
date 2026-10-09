@@ -966,6 +966,7 @@ async function main(): Promise<void> {
     if (shellInstallerOwnsQuit) {
       updateDialog.dispose()
       mandatoryUI?.dispose()
+      mandatoryUI = undefined
       return
     }
     if (quitting) return
@@ -977,6 +978,7 @@ async function main(): Promise<void> {
     updateSchedule.dispose()
     updateDialog.dispose()
     mandatoryUI?.dispose()
+    mandatoryUI = undefined
     void Promise.all([Promise.resolve(mandatoryPolicy?.dispose()).then(() => policyAuth?.dispose()), backend.close()])
       .catch((error: unknown) => { console.error(error) }).finally(() => { app.quit() })
   })
@@ -1015,14 +1017,15 @@ async function main(): Promise<void> {
       if (state.blocking && !wasBlocking) void updateSchedule.check(false, true).catch((error: unknown) => { console.error(error) })
       wasBlocking = state.blocking
     }, policyAuth?.request)
-    const policy = mandatoryPolicy
-    mandatoryUI = new DesktopMandatoryUpdateWindow({
-      preload: fileURLToPath(new URL('./preload-mandatory.cjs', import.meta.url)), locale,
-      allowedPageOrigins: policyConfig.allowedPageOrigins, parent: () => mainWindow,
-      policy: () => policy.state, update: () => updates.state,
-      refresh: async () => { await Promise.all([checkPolicyManually(), updateSchedule.check(true)]) },
-      download: downloadUpdate, install: version => updates.install(version),
-    })
+  }
+  mandatoryUI = new DesktopMandatoryUpdateWindow({
+    preload: fileURLToPath(new URL('./preload-mandatory.cjs', import.meta.url)), locale,
+    allowedPageOrigins: policyConfig?.allowedPageOrigins ?? [], parent: () => mainWindow,
+    policy: () => mandatoryPolicy?.state ?? { blocking: false, checking: false }, update: () => updates.state,
+    refresh: async () => { await Promise.all([checkPolicyManually(), updateSchedule.check(true)]) },
+    download: downloadUpdate, install: version => updates.install(version),
+  })
+  if (mandatoryPolicy !== undefined) {
     void mandatoryPolicy.check('launch').then((state) => {
       if (app.isPackaged && state.error === 'authentication-required' && !isQuitting()) queuePolicyAuthentication()
     }).catch((error: unknown) => { console.error(error) })

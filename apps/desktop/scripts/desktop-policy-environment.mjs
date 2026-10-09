@@ -1,6 +1,21 @@
 /** Resolve the required policy service from the same deployment as updater publication. */
 import { resolveDesktopAutoUpdateEnvironment } from './desktop-auto-update-environment.mjs'
 
+/**
+ * Resolve the explicit offline-update choice for unsigned Windows installers.
+ * @param {NodeJS.ProcessEnv} environment File-owned packaging settings.
+ * @param {boolean} unsigned Whether signing is explicitly disabled.
+ * @param {NodeJS.Platform} platform Selected packaging platform.
+ * @returns {boolean} Whether the installer must omit update services.
+ */
+export function desktopUpdatesDisabled(environment, unsigned, platform) {
+  const value = environment.DSH_DESKTOP_WINDOWS_DISABLE_UPDATES
+  if (value === undefined || value === '0') return false
+  if (value !== '1') throw new Error('desktop package: DSH_DESKTOP_WINDOWS_DISABLE_UPDATES must be 0 or 1')
+  if (!unsigned || platform !== 'win32') throw new Error('desktop package: disabling updates requires an unsigned Windows package')
+  return true
+}
+
 function origin(value, name) {
   let url
   try { url = new URL(value) } catch { throw new Error(`desktop package: ${name} requires an HTTPS origin`) }

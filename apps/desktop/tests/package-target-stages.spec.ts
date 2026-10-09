@@ -102,6 +102,15 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
+it('passes the offline update choice to the unsigned builder without passing signing credentials', async () => {
+  const { run } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['win-x64', '--unsigned'], 'win32', 'x64'),
+    { ...environment, DSH_DESKTOP_WINDOWS_DISABLE_UPDATES: '1' }, run)
+  const builder = run.run.mock.calls.find(call => call[0].startsWith('exec electron-builder'))
+  expect(builder?.[3].env).toHaveProperty('DSH_DESKTOP_WINDOWS_DISABLE_UPDATES', '1')
+  expect(builder?.[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+})
+
 it('checks the assembled macOS runtime before notarizing and recording the release', async () => {
   const { run, stages } = supervisor()
   vi.mocked(packageMacOSArtifacts).mockImplementationOnce(async () => {

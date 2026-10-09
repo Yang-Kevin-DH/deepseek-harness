@@ -13,3 +13,12 @@ export interface DesktopPolicyEnvironment {
  * @returns Policy metadata with deployment-selected origin and authentication.
  */
 export function resolveDesktopPolicyEnvironment(environment: NodeJS.ProcessEnv): DesktopPolicyEnvironment
+
+/**
+ * Resolve the offline-update setting; only unsigned Windows installers may enable it.
+ * @param environment File-owned packaging settings.
+ * @param unsigned Whether signing is explicitly disabled.
+ * @param platform Selected packaging platform.
+ * @returns Whether the installer omits update services.
+ */
+export function desktopUpdatesDisabled(environment: NodeJS.ProcessEnv, unsigned: boolean, platform: NodeJS.Platform): boolean
