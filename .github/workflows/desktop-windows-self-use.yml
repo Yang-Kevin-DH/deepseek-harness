@@ -77,6 +77,7 @@ jobs:
           apps/desktop/tests/windows-update-publisher.spec.ts
           apps/desktop/tests/desktop-package-environment.spec.ts
           apps/desktop/tests/package-target.spec.ts
+          apps/desktop/tests/package-target-bootstrap.spec.ts
           apps/desktop/tests/package-target-stages.spec.ts
           apps/desktop/tests/main-startup.spec.ts
 

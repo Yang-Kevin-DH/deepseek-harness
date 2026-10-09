@@ -255,6 +255,8 @@ Apple tooling uses the active macOS network service's HTTP/HTTPS proxies. Config
 
 ### Unsigned Windows test installer
 
+Windows packaging prechecks run from an installed source checkout without POSIX build artifacts. The packaging entry loads the macOS notarization proxy only for macOS artifact preparation.
+
 On Windows x64, use the complete unsigned packaging command for local installation testing:
 
 ```sh

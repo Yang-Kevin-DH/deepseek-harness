@@ -23,7 +23,6 @@ import { DESKTOP_BUILD_VERSION_ENV, resolveDesktopBuildVersion, validateDesktopB
 import { suggestDesktopBuildVersion } from './desktop-build-version-discovery.ts'
 import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBuildCommit } from './desktop-build-commit.mjs'
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
-import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -474,6 +473,7 @@ export async function packageTarget(
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime', '--dsh'], electronBuilderEnv)
   if (invocation.prepareOnly) return
   if (target.platform === 'darwin' && !invocation.directory) {
+    const { withMacOSNotarizationProxy } = await import('./macos-notarization-proxy.ts')
     await execute([
       ...desktopElectronBuilderArguments(target, true),
       '--config.mac.notarize=false',
@@ -487,6 +487,7 @@ export async function packageTarget(
       environment: electronBuilderEnv,
     }, artifact => execute(desktopElectronBuilderArguments(target, false, artifact), electronBuilderEnv)), undefined, undefined, proxyEvent)
   } else if (target.platform === 'darwin') {
+    const { withMacOSNotarizationProxy } = await import('./macos-notarization-proxy.ts')
     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
     const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
