@@ -29,7 +29,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: R:\
+        working-directory: R:\deepseek-harness
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       DSH_TELEMETRY_DISABLED: '1'
@@ -44,8 +44,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           if (Test-Path 'R:\') { throw 'Build drive R: is already occupied' }
-          subst R: $env:GITHUB_WORKSPACE
+          $workspaceParent = Split-Path -Parent $env:GITHUB_WORKSPACE
+          subst R: $workspaceParent
           if ($LASTEXITCODE -ne 0) { throw 'Cannot map the short Windows build path' }
+          if (!(Test-Path 'R:\deepseek-harness\package.json')) { throw 'Short build directory is unavailable' }
 
       - name: Enable Windows symlinks
         run: |
