@@ -255,6 +255,8 @@ Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置�
 
 ### 未签名 Windows 测试安装包
 
+GitHub 自用工作流通过短盘符映射 `R:\` 构建，因为 LibreOffice 的 Windows 原生资源加载器可能在较长的打包资源路径下失败。映射仅用于构建 runner，并在清理时移除。安装后的应用仍需使用足够短的安装路径，才能执行原生 Office 转换。
+
 Windows 打包预检查可在已安装依赖的源码 checkout 中运行，无需 POSIX 构建产物。打包入口仅在准备 macOS 产物时加载 macOS 公证代理。
 
 在 Windows x64 上，使用完整的未签名打包命令进行本地安装测试：

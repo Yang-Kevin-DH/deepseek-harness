@@ -29,6 +29,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
+        working-directory: R:\
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       DSH_TELEMETRY_DISABLED: '1'
@@ -38,6 +39,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Use a short Windows build path
+        working-directory: ${{ github.workspace }}
+        run: |
+          if (Test-Path 'R:\') { throw 'Build drive R: is already occupied' }
+          subst R: $env:GITHUB_WORKSPACE
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot map the short Windows build path' }
 
       - name: Enable Windows symlinks
         run: |
@@ -117,7 +125,15 @@ jobs:
           path: apps/desktop/.desktop-build/packaging-runs/
           if-no-files-found: ignore
           retention-days: 7
+          include-hidden-files: true
 
       - name: Remove local packaging settings
         if: always()
+        working-directory: ${{ github.workspace }}
         run: Remove-Item -LiteralPath apps/desktop/.env.windows -Force -ErrorAction SilentlyContinue
+
+      - name: Release the short Windows build path
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          if (Test-Path 'R:\') { subst R: /D }
