@@ -20,7 +20,9 @@ const application = windows ? join(artifacts, 'win-unpacked')
   : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app', 'Contents')
 const resources = join(application, windows ? 'resources' : 'Resources')
 const executable = windows ? join(application, 'DeepSeek Harness.exe') : join(application, 'MacOS', 'DeepSeek Harness')
-execFileSync(executable, [fileURLToPath(new URL('../tests/fixtures/shell-dependencies-smoke.mjs', import.meta.url)),
+const shellValidator = windows ? join(paths.electron, 'electron.exe')
+  : join(paths.electron, 'Electron.app', 'Contents', 'MacOS', 'Electron')
+execFileSync(shellValidator, [fileURLToPath(new URL('../tests/fixtures/shell-dependencies-smoke.mjs', import.meta.url)),
   join(resources, 'app.asar', 'lib', 'main.js')], {
   stdio: 'inherit', windowsHide: true, timeout: 30_000,
   env: { ...Object.fromEntries(Object.entries(scrubWindowsSigningEnvironment(process.env))

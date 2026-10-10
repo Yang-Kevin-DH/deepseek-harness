@@ -255,7 +255,7 @@ Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置�
 
 ### 未签名 Windows 测试安装包
 
-Electron 主进程将其 workspace 导入及其必需的 workspace peer 依赖闭包声明为生产依赖。打包验证在检查独立的 Desktop Host 和 Office 转换前，解析静态导入并在 Electron 下加载完整的主进程模块图。验证进程拒绝单实例所有权，不打开窗口或访问用户 profile。
+Electron 主进程将其 workspace 导入及其必需的 workspace peer 依赖闭包声明为生产依赖。打包验证在检查独立的 Desktop Host 和 Office 转换前，使用准备好的 Electron 发行版针对最终 ASAR 解析静态导入并加载完整的主进程模块图。打包后的可执行文件拥有其应用入口，无法通过 argv 选择验证脚本。验证进程拒绝单实例所有权，不打开窗口或访问用户 profile。
 
 GitHub 自用工作流将指定提交克隆到真实目录 `C:\dsh`，因为 LibreOffice 的 Windows 原生资源加载器可能在较长的打包资源路径下失败。工作流在安装依赖前验证真实构建根目录；盘符映射无法保证模块解析后的路径仍然较短。安装后的应用仍需使用足够短的安装路径，才能执行原生 Office 转换。
 
