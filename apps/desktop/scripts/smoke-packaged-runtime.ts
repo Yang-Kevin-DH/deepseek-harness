@@ -1,9 +1,12 @@
 /** Validate the assembled application, including native Office conversion outside ASAR. */
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
+import { scrubWindowsSigningEnvironment } from './windows-sign.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 
@@ -17,6 +20,11 @@ const application = windows ? join(artifacts, 'win-unpacked')
   : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app', 'Contents')
 const resources = join(application, windows ? 'resources' : 'Resources')
 const executable = windows ? join(application, 'DeepSeek Harness.exe') : join(application, 'MacOS', 'DeepSeek Harness')
+execFileSync(executable, [fileURLToPath(new URL('../tests/fixtures/shell-dependencies-smoke.mjs', import.meta.url)),
+  join(resources, 'app.asar', 'lib', 'main.js')], {
+  stdio: 'inherit', windowsHide: true, timeout: 30_000,
+  env: { ...scrubWindowsSigningEnvironment(process.env), ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: '' },
+})
 const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
   resolveDesktopPackageTarget(target))
 if (windows && !values.unsigned) await verifyWindowsCode(application)

@@ -94,6 +94,7 @@ jobs:
           apps/desktop/tests/package-target-bootstrap.spec.ts
           apps/desktop/tests/package-target-stages.spec.ts
           apps/desktop/tests/main-startup.spec.ts
+          apps/desktop/tests/shell-dependencies.spec.ts
 
       - name: Build and verify installer
         run: pnpm --dir apps/desktop run package:win:x64:unsigned --build-version $env:BUILD_VERSION
