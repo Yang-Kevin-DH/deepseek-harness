@@ -255,7 +255,7 @@ Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置�
 
 ### 未签名 Windows 测试安装包
 
-GitHub 自用工作流通过盘符映射在 `R:\deepseek-harness` 中构建，因为 LibreOffice 的 Windows 原生资源加载器可能在较长的打包资源路径下失败。项目保留在盘符根目录下的子目录中，以便 Vitest 正确解析模块。映射仅用于构建 runner，并在清理时移除。安装后的应用仍需使用足够短的安装路径，才能执行原生 Office 转换。
+GitHub 自用工作流将指定提交克隆到真实目录 `C:\dsh`，因为 LibreOffice 的 Windows 原生资源加载器可能在较长的打包资源路径下失败。工作流在安装依赖前验证真实构建根目录；盘符映射无法保证模块解析后的路径仍然较短。安装后的应用仍需使用足够短的安装路径，才能执行原生 Office 转换。
 
 Windows 打包预检查可在已安装依赖的源码 checkout 中运行，无需 POSIX 构建产物。打包入口仅在准备 macOS 产物时加载 macOS 公证代理。
 

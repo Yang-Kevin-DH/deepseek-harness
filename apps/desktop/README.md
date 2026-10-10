@@ -255,7 +255,7 @@ Apple tooling uses the active macOS network service's HTTP/HTTPS proxies. Config
 
 ### Unsigned Windows test installer
 
-The GitHub self-use workflow builds in `R:\deepseek-harness` through a drive mapping because LibreOffice's Windows native resource loader can fail on long packaged resource paths. The project remains below the drive root so Vitest resolves its modules correctly. The mapping applies only to the build runner and is removed during cleanup. Installed applications still require a sufficiently short installation path for native Office conversion.
+The GitHub self-use workflow clones the requested commit into the physical directory `C:\dsh` because LibreOffice's Windows native resource loader can fail on long packaged resource paths. It verifies the physical build root before installing dependencies; drive mappings do not guarantee short paths after module resolution. Installed applications still require a sufficiently short installation path for native Office conversion.
 
 Windows packaging prechecks run from an installed source checkout without POSIX build artifacts. The packaging entry loads the macOS notarization proxy only for macOS artifact preparation.
 

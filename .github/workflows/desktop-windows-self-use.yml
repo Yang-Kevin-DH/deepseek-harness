@@ -29,7 +29,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: R:\deepseek-harness
+        working-directory: C:\dsh
     env:
       NODE_OPTIONS: --max-old-space-size=4096
       DSH_TELEMETRY_DISABLED: '1'
@@ -43,11 +43,15 @@ jobs:
       - name: Use a short Windows build path
         working-directory: ${{ github.workspace }}
         run: |
-          if (Test-Path 'R:\') { throw 'Build drive R: is already occupied' }
-          $workspaceParent = Split-Path -Parent $env:GITHUB_WORKSPACE
-          subst R: $workspaceParent
-          if ($LASTEXITCODE -ne 0) { throw 'Cannot map the short Windows build path' }
-          if (!(Test-Path 'R:\deepseek-harness\package.json')) { throw 'Short build directory is unavailable' }
+          if (Test-Path 'C:\dsh') { throw 'Short build directory C:\dsh is already occupied' }
+          git clone --no-hardlinks --no-checkout $env:GITHUB_WORKSPACE C:\dsh
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot create the short Windows checkout' }
+          git -C C:\dsh checkout --detach $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot check out the requested commit' }
+
+      - name: Verify physical build path
+        run: |
+          node --input-type=module -e 'import {realpathSync} from "node:fs"; const root=realpathSync(process.cwd()); console.log("Physical build root: "+root); if(root.toLowerCase()!=="c:\\dsh") process.exit(1);'
 
       - name: Enable Windows symlinks
         run: |
@@ -114,8 +118,8 @@ jobs:
         with:
           name: windows-desktop-self-use-${{ env.BUILD_VERSION }}
           path: |
-            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
-            apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.sha256
+            C:/dsh/apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.exe
+            C:/dsh/apps/desktop/.desktop-build/targets/win-x64/unsigned-artifacts/*.sha256
           if-no-files-found: error
           retention-days: 14
 
@@ -124,7 +128,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-desktop-packaging-diagnostics
-          path: apps/desktop/.desktop-build/packaging-runs/
+          path: C:/dsh/apps/desktop/.desktop-build/packaging-runs/
           if-no-files-found: ignore
           retention-days: 7
           include-hidden-files: true
@@ -132,10 +136,4 @@ jobs:
       - name: Remove local packaging settings
         if: always()
         working-directory: ${{ github.workspace }}
-        run: Remove-Item -LiteralPath apps/desktop/.env.windows -Force -ErrorAction SilentlyContinue
-
-      - name: Release the short Windows build path
-        if: always()
-        working-directory: ${{ github.workspace }}
-        run: |
-          if (Test-Path 'R:\') { subst R: /D }
+        run: Remove-Item -LiteralPath C:/dsh/apps/desktop/.env.windows -Force -ErrorAction SilentlyContinue
