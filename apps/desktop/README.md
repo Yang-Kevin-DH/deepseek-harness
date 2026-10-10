@@ -255,7 +255,7 @@ Apple tooling uses the active macOS network service's HTTP/HTTPS proxies. Config
 
 ### Unsigned Windows test installer
 
-The Electron main process declares its workspace imports as production dependencies. Packaged validation resolves every static main-process import from the ASAR application root before checking the separate Desktop Host and Office conversion.
+The Electron main process declares its workspace imports and their required workspace peer closure as production dependencies. Packaged validation resolves its static imports and loads the complete main-process module graph under Electron before checking the separate Desktop Host and Office conversion. The validation process declines single-instance ownership without opening windows or accessing user profiles.
 
 The GitHub self-use workflow clones the requested commit into the physical directory `C:\dsh` because LibreOffice's Windows native resource loader can fail on long packaged resource paths. It verifies the physical build root before installing dependencies; drive mappings do not guarantee short paths after module resolution. Installed applications still require a sufficiently short installation path for native Office conversion.
 

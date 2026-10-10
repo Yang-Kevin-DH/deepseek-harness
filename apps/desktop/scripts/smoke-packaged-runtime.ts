@@ -23,7 +23,8 @@ const executable = windows ? join(application, 'DeepSeek Harness.exe') : join(ap
 execFileSync(executable, [fileURLToPath(new URL('../tests/fixtures/shell-dependencies-smoke.mjs', import.meta.url)),
   join(resources, 'app.asar', 'lib', 'main.js')], {
   stdio: 'inherit', windowsHide: true, timeout: 30_000,
-  env: { ...scrubWindowsSigningEnvironment(process.env), ELECTRON_RUN_AS_NODE: '1', NODE_OPTIONS: '' },
+  env: { ...Object.fromEntries(Object.entries(scrubWindowsSigningEnvironment(process.env))
+    .filter(([name]) => name !== 'ELECTRON_RUN_AS_NODE')), NODE_OPTIONS: '' },
 })
 const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
   resolveDesktopPackageTarget(target))
